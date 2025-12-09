@@ -1,5 +1,5 @@
 ; Personality for Rodent IV chess engine
-; PIZZARAT: Tal-style attacking hustler preset
+; PIZZARAT: Tal-style attacking preset
 setoption name UCI_LimitStrength value true
 setoption name UCI_Elo value 2100
 setoption name Taunting value true

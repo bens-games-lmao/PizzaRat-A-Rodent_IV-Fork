@@ -1,5 +1,5 @@
 ; Personality for Rodent IV chess engine
-; PIZZARAT: Spitfire attacking hustler preset
+; PIZZARAT: Spitfire attacking preset
 setoption name UCI_LimitStrength value true
 setoption name UCI_Elo value 1900
 setoption name Taunting value true

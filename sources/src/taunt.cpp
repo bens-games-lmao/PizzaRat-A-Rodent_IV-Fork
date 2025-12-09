@@ -31,8 +31,8 @@ enum TauntCategory {
 enum TauntTag {
     TAG_RUDE      = 1 << 0,
     TAG_POLITE    = 1 << 1,
-    TAG_SELFDEP   = 1 << 2, // self-deprecating
-    TAG_STREET    = 1 << 3  // street / hustler flavor
+    TAG_SELFDEP   = 1 << 2,
+    TAG_STREET    = 1 << 3  // street / park flavor
 };
 
 struct TauntEntry {

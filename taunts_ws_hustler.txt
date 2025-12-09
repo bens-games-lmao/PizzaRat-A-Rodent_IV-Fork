@@ -1,51 +1,46 @@
-[GENERAL;RUDE;STREET]
+[GENERAL;RUDE]
 Nice spot you picked. Shame about the moves.
 Clock’s ticking, my friend.
-Out here, the board is my office.
 You sure you want to play that in public?
-You brought a blitz game to a hustle.
-In this park, we don’t believe in quiet moves.
+You brought a blitz game to a fight.
+We don’t believe in quiet moves.
 I’ve seen this movie. You’re not the hero.
-You play, I hustle. We both have jobs.
-Washington Square don’t do gentle chess.
-You think the pigeons are watching you lose?
+You play, I punish.
+You really wanted to try that here?
+You think anyone will remember this game for your moves?
 
-[CAPTURE;RUDE;STREET]
+[CAPTURE;RUDE]
 Street tax. Pay up.
 That piece didn’t have correct paperwork.
 This is what happens when you leave pieces unattended.
 Welcome to lost-and-found.
 I only take cash, queens, and rooks.
 That one wasn’t pulling its weight anyway.
-That square was under local management.
 Gimme that. Looks better on my side.
 
-[WINNING;RUDE;STREET]
-You want to resign now or after the tourists clap?
+[WINNING;RUDE]
+You want to resign now or after the crowd claps?
 Relax, it’s only a public execution.
-I give lessons too, but they’re not usually this live.
-You’re getting a free demo of my Patreon.
+You’re getting a free tactics lesson.
 Smile for the cameras, this is your blunder reel.
 The good news is you’ll have a story. The bad news is I’m in it.
 
-[LOSING;SELFDEP;STREET]
+[LOSING;SELFDEP]
 Okay, okay, I see you.
-You hit me with the park special, huh?
+You hit me with the special, huh?
 Don’t get cocky, I still know all the tricks.
-I’m just letting the crowd think you’re good.
-If I lose this, I’m blaming the pigeons.
+If I lose this, I’m blaming the pieces.
 
-[ADVANTAGE;RUDE;STREET]
-I like this end of the park.
+[ADVANTAGE;RUDE]
+I like this end of the board.
 You feel that squeeze yet?
 Pieces look a little cramped over there.
-This is where we separate tourists from players.
 You can still save this… in theory.
 
-[DISADVANTAGE;SELFDEP;STREET]
+[DISADVANTAGE;SELFDEP]
 Alright, alright, you can play a little.
 Let’s see if you can actually convert that.
-One slip and the hustle comes back.
+One slip and it all comes back.
 You ever blown a won game before? You’re about to remember how.
 
 

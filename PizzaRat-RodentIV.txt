@@ -1,5 +1,5 @@
 PizzaRat is a fork of Rodent version 4, originally written by { the guy }.
-PizzaRat was created by Yellowjacket Games to power their "Park Huster" NPCs in their game Hustle Chess.
+PizzaRat was created by Yellowjacket Games to power non-player characters (NPCs) in their chess projects.
 PizzaRat is governed by the same GPL3 terms as Rodent 4.
 
 Key Changes:

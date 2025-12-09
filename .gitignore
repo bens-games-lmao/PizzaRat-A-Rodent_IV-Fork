@@ -1,0 +1,16 @@
+# Local-only assets and configs that should not be pushed publicly.
+/private/
+
+# Common Windows / build artefacts (optional safety)
+*.exe
+*.pdb
+*.obj
+*.log
+*.tmp
+*.user
+*.suo
+*.vcxproj.user
+Debug/
+Release/
+
+

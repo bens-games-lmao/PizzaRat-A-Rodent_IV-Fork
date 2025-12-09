@@ -1,4 +1,4 @@
-; Washington Square Park hustler for PIZZARAT (Rodent 5)
+; Aggressive 1800 preset for PIZZARAT
 ; Sub-master strength, practical attacking style, lots of table talk.
 
 ; --- Strength / weakening ----------------------------------------------------
@@ -25,7 +25,7 @@ setoption name BlitzHustle value 80
 
 ; --- Opening style -----------------------------------------------------------
 
-; Use main book and gambit guide to get sharp, hustler-friendly positions.
+; Use main book and gambit guide to get sharp, attacking positions.
 setoption name UseBook value true
 setoption name GuideBookFile value ph-gambitbook.bin
 setoption name MainBookFile value rodent.bin
