@@ -254,6 +254,42 @@ static void PrintRandomTaunt(TauntCategory cat) {
     std::cout << "info string " << chosen->text << std::endl;
 }
 
+// Try to handle blunders or small evaluation swings with dedicated taunts.
+// Returns true if a specific blunder/escape/gaining taunt was printed.
+static bool HandleBlunderOrSwingTaunt(int eventType) {
+
+    if (Glob.previousValue == 8888) {
+        // No previous score to compare to – generic taunt only.
+        PrintGenericTaunt();
+        return true;
+    }
+
+    int delta = Glob.gameValue - Glob.previousValue;
+    bool isSmallGain = delta > Glob.tauntSmallGainMin && delta < Glob.tauntSmallGainMax;
+
+    if (delta > Glob.tauntUserBlunderDelta) {
+        PrintUserBlunderTaunt();
+        return true;
+    }
+
+    if (delta < -Glob.tauntEngineBlunderDelta) {
+        PrintEngineBlunderTaunt();
+        return true;
+    }
+
+    if (isSmallGain && eventType == TAUNT_BALANCE) {
+        PrintEngineEscapeTaunt();
+        return true;
+    }
+
+    if (isSmallGain && eventType == TAUNT_ADVANTAGE) {
+        PrintGainingTaunt();
+        return true;
+    }
+
+    return false;
+}
+
 } // namespace
 
 // 
@@ -267,36 +303,8 @@ void PrintTaunt(int eventType) {
 
     Glob.currentTaunt = eventType;
 
-    if (Glob.previousValue == 8888) {
-        PrintGenericTaunt();
+    if (HandleBlunderOrSwingTaunt(eventType))
         return;
-    }
-
-    if (Glob.previousValue != 8888) {
-        int delta = Glob.gameValue - Glob.previousValue;
-
-        bool isSmallGain = delta > 30 && delta < 60;
-
-        if (delta > 200) {
-            PrintUserBlunderTaunt();
-            return;
-        }
-
-        if (delta < -200) {
-            PrintEngineBlunderTaunt();
-            return;
-        }
-
-        if (isSmallGain && eventType == TAUNT_BALANCE) {
-            PrintEngineEscapeTaunt();
-            return;
-        }
-
-        if (isSmallGain && eventType == TAUNT_ADVANTAGE) {
-            PrintGainingTaunt();
-            return;
-        }
-    }
 
     if (eventType == TAUNT_CAPTURE)
         PrintCaptureTaunt();

@@ -236,7 +236,7 @@ static void ApplyHustleScaling(int ourBaseTime, int oppBaseTime) {
         return;
 
     // Nervousness: adjust when we are in time trouble.
-    if (ourBaseTime < 30000 && Glob.timeNervousness > 50) {
+    if (ourBaseTime < Glob.hustleTimeThresholdMs && Glob.timeNervousness > 50) {
         int delta = Glob.timeNervousness - 50;   // 1..50
         int scale = 100 - delta / 2;             // 99..75
         cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;

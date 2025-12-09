@@ -108,12 +108,18 @@ if (Glob.isNoisy) {
     MainBook.SetBookName("rodent.bin");
     ReadPersonality("basic.ini");
 
+    // PIZZARAT global configuration (optional, lives alongside personalities)
+    ReadPersonality("pizzarat.ini");
+
     // reading default personality
     if (Glob.usePersonalityFiles)
         ReadPersonality("default.txt");
 
     // read character aliases (for high-level presets)
     ReadCharacters("characters.txt");
+
+    if (Glob.isNoisy)
+        DumpPizzaratProfile();
 
     UciLoop();
 }
@@ -153,17 +159,59 @@ void cGlobals::Init() {
     eloSlider = true;
 	multiPv = 1;
 
-    // default taunt configuration; can be overridden by personality/character files
-    tauntFile       = "taunts.txt";
-    tauntIntensity  = 100;
-    tauntRudeness   = 50;
-    tauntWhenLosing = 50;
-
-    // default time / hustle behaviour
-    timeNervousness = 50;
-    blitzHustle     = 50;
+    InitPizzaratDefaults();
 }
 
 bool cGlobals::CanReadBook() {
     return (useBooksFromPers == isReadingPersonality || !usePersonalityFiles);
+}
+
+void InitPizzaratDefaults() {
+
+    // default taunt configuration; can be overridden by personality/character files
+    Glob.tauntFile       = "taunts.txt";
+    Glob.tauntIntensity  = 100;
+    Glob.tauntRudeness   = 50;
+    Glob.tauntWhenLosing = 50;
+
+    // default time / hustle behaviour
+    Glob.timeNervousness = 50;
+    Glob.blitzHustle     = 50;
+
+    // default taunt deltas / thresholds (in centipawns)
+    Glob.tauntUserBlunderDelta   = 200;
+    Glob.tauntEngineBlunderDelta = 200;
+    Glob.tauntSmallGainMin       = 30;
+    Glob.tauntSmallGainMax       = 60;
+
+    Glob.tauntBalanceWindow      = 15;
+    Glob.tauntAdvantageThreshold = 50;
+    Glob.tauntWinningThreshold   = 100;
+    Glob.tauntCrushingThreshold  = 300;
+
+    // default time threshold (milliseconds) for nervousness scaling
+    Glob.hustleTimeThresholdMs   = 30000;
+}
+
+void DumpPizzaratProfile() {
+
+    printf("info string PIZZARAT profile: TauntFile='%s' Intensity=%d Rudeness=%d WhenLosing=%d "
+           "TimeNervousness=%d BlitzHustle=%d "
+           "UserBlunderDelta=%d EngineBlunderDelta=%d SmallGain=[%d,%d] "
+           "BalanceWindow=%d Adv=%d Win=%d Crush=%d HustleTimeThresholdMs=%d\n",
+           Glob.tauntFile.c_str(),
+           Glob.tauntIntensity,
+           Glob.tauntRudeness,
+           Glob.tauntWhenLosing,
+           Glob.timeNervousness,
+           Glob.blitzHustle,
+           Glob.tauntUserBlunderDelta,
+           Glob.tauntEngineBlunderDelta,
+           Glob.tauntSmallGainMin,
+           Glob.tauntSmallGainMax,
+           Glob.tauntBalanceWindow,
+           Glob.tauntAdvantageThreshold,
+           Glob.tauntWinningThreshold,
+           Glob.tauntCrushingThreshold,
+           Glob.hustleTimeThresholdMs);
 }

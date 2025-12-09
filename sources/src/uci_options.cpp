@@ -67,6 +67,15 @@ void PrintUciOptions() {
         printf("option name TauntWhenLosing type spin default %d min 0 max 100\n", Glob.tauntWhenLosing);
         printf("option name TimeNervousness type spin default %d min 0 max 100\n", Glob.timeNervousness);
         printf("option name BlitzHustle type spin default %d min 0 max 100\n", Glob.blitzHustle);
+        printf("option name TauntUserBlunderDelta type spin default %d min 0 max 1000\n", Glob.tauntUserBlunderDelta);
+        printf("option name TauntEngineBlunderDelta type spin default %d min 0 max 1000\n", Glob.tauntEngineBlunderDelta);
+        printf("option name TauntSmallGainMin type spin default %d min 0 max 1000\n", Glob.tauntSmallGainMin);
+        printf("option name TauntSmallGainMax type spin default %d min 0 max 1000\n", Glob.tauntSmallGainMax);
+        printf("option name TauntBalanceWindow type spin default %d min 0 max 1000\n", Glob.tauntBalanceWindow);
+        printf("option name TauntAdvantageThreshold type spin default %d min 0 max 1000\n", Glob.tauntAdvantageThreshold);
+        printf("option name TauntWinningThreshold type spin default %d min 0 max 1000\n", Glob.tauntWinningThreshold);
+        printf("option name TauntCrushingThreshold type spin default %d min 0 max 1000\n", Glob.tauntCrushingThreshold);
+        printf("option name HustleTimeThresholdMs type spin default %d min 0 max 600000\n", Glob.hustleTimeThresholdMs);
         printf("option name UCI_Elo type spin default %d min 800 max 2800\n", Par.elo);
     }
 
@@ -173,6 +182,61 @@ static char *pseudotrimstring(char *in_str) {
     while (*in_str == ' ') in_str++;
 
     return in_str;
+}
+
+static bool HandlePizzaratOption(const char *name, char *value) {
+
+    if (strcmp(name, "taunting") == 0) {
+        valuebool(Glob.useTaunting, value);
+        return true;
+    } else if (strcmp(name, "tauntfile") == 0) {
+        Glob.tauntFile = value;
+        return true;
+    } else if (strcmp(name, "tauntintensity") == 0) {
+        Glob.tauntIntensity = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntrudeness") == 0) {
+        Glob.tauntRudeness = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntwhenlosing") == 0) {
+        Glob.tauntWhenLosing = atoi(value);
+        return true;
+    } else if (strcmp(name, "timenervousness") == 0) {
+        Glob.timeNervousness = atoi(value);
+        return true;
+    } else if (strcmp(name, "blitzhustle") == 0) {
+        Glob.blitzHustle = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntuserblunderdelta") == 0) {
+        Glob.tauntUserBlunderDelta = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntengineblunderdelta") == 0) {
+        Glob.tauntEngineBlunderDelta = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntsmallgainmin") == 0) {
+        Glob.tauntSmallGainMin = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntsmallgainmax") == 0) {
+        Glob.tauntSmallGainMax = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntbalancewindow") == 0) {
+        Glob.tauntBalanceWindow = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntadvantagethreshold") == 0) {
+        Glob.tauntAdvantageThreshold = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntwinningthreshold") == 0) {
+        Glob.tauntWinningThreshold = atoi(value);
+        return true;
+    } else if (strcmp(name, "tauntcrushingthreshold") == 0) {
+        Glob.tauntCrushingThreshold = atoi(value);
+        return true;
+    } else if (strcmp(name, "hustletimethresholdms") == 0) {
+        Glob.hustleTimeThresholdMs = atoi(value);
+        return true;
+    }
+
+    return false;
 }
 
 void ParseSetoption(const char *ptr) {
@@ -357,20 +421,8 @@ void ParseSetoption(const char *ptr) {
         Par.SetSpeed(Par.elo);
     } else if (strcmp(name, "printpv") == 0)                                 {
         valuebool(Glob.printPv, value);
-    } else if (strcmp(name, "taunting") == 0)                                {
-        valuebool(Glob.useTaunting, value);
-    } else if (strcmp(name, "tauntfile") == 0)                               {
-        Glob.tauntFile = value;
-    } else if (strcmp(name, "tauntintensity") == 0)                          {
-        Glob.tauntIntensity = atoi(value);
-    } else if (strcmp(name, "tauntrudeness") == 0)                           {
-        Glob.tauntRudeness = atoi(value);
-    } else if (strcmp(name, "tauntwhenlosing") == 0)                         {
-        Glob.tauntWhenLosing = atoi(value);
-    } else if (strcmp(name, "timenervousness") == 0)                         {
-        Glob.timeNervousness = atoi(value);
-    } else if (strcmp(name, "blitzhustle") == 0)                             {
-        Glob.blitzHustle = atoi(value);
+    } else if (HandlePizzaratOption(name, value))                            {
+        // handled by PIZZARAT extensions
     } else if (strcmp(name, "verbose") == 0)                                 {
         valuebool(Glob.isNoisy, value);
     } else if (strcmp(name, "uci_limitstrength") == 0)                       {

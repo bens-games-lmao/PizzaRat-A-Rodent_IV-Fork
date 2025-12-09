@@ -759,6 +759,20 @@ class cGlobals {
     int timeNervousness;     // 0-100, higher = moves faster under time pressure
     int blitzHustle;         // 0-100, higher = uses less time when opponent is low on time
 
+    // PIZZARAT-taunt thresholds (in centipawns), configurable via UCI/options
+    int tauntUserBlunderDelta;   // score jump above which we consider a user blunder
+    int tauntEngineBlunderDelta; // score drop below which we consider an engine blunder
+    int tauntSmallGainMin;       // lower bound for "small gain" window
+    int tauntSmallGainMax;       // upper bound for "small gain" window
+
+    int tauntBalanceWindow;      // |eval| <= this => BALANCE
+    int tauntAdvantageThreshold; // > this => ADVANTAGE / DISADVANTAGE
+    int tauntWinningThreshold;   // > this => WINNING / LOSING
+    int tauntCrushingThreshold;  // > this => CRUSHING
+
+    // Time-management / hustle thresholds
+    int hustleTimeThresholdMs;   // below this base time, nervousness scaling applies
+
     void ClearData();
     void Init();
     bool CanReadBook();
@@ -956,6 +970,8 @@ void ReadLine(char *, int);
 void ReadPersonality(const char *fileName);
 void ReadThreadNumber(const char *fileName);
 void ReadCharacters(const char *fileName);
+void InitPizzaratDefaults();
+void DumpPizzaratProfile();
 void UciLoop();
 int PolyglotRandom(int n);
 int Percent(int val, int perc);

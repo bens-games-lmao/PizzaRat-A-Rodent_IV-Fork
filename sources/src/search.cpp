@@ -114,6 +114,30 @@ void cEngine::InitSearch() { // static init function
         }
 }
 
+static int DetermineTauntEvent(POS *p, int bestMove) {
+
+    int tauntEvent = TAUNT_GENERIC;
+
+    int tsq = Tsq(bestMove);
+    if (SqBb(tsq) & p->Filled()) {
+        tauntEvent = TAUNT_CAPTURE;
+    } else {
+        if (Glob.gameValue > -Glob.tauntBalanceWindow && Glob.gameValue < Glob.tauntBalanceWindow)
+            tauntEvent = TAUNT_BALANCE;
+        else {
+            if (Glob.gameValue < 0)                             tauntEvent = TAUNT_SMALL_MINUS;
+            if (Glob.gameValue > 0)                             tauntEvent = TAUNT_SMALL_PLUS;
+            if (Glob.gameValue < -Glob.tauntAdvantageThreshold) tauntEvent = TAUNT_DISADVANTAGE;
+            if (Glob.gameValue >  Glob.tauntAdvantageThreshold) tauntEvent = TAUNT_ADVANTAGE;
+            if (Glob.gameValue >  Glob.tauntWinningThreshold)   tauntEvent = TAUNT_WINNING;
+            if (Glob.gameValue < -Glob.tauntWinningThreshold)   tauntEvent = TAUNT_LOSING;
+            if (Glob.gameValue >  Glob.tauntCrushingThreshold)  tauntEvent = TAUNT_CRUSHING;
+        }
+    }
+
+    return tauntEvent;
+}
+
 void cEngine::Think(POS *p) {
 
     POS curr[1];
@@ -128,23 +152,7 @@ void cEngine::Think(POS *p) {
     mEngSide = p->mSide;
 
     if (Glob.useTaunting) {
-        int tauntEvent = TAUNT_GENERIC;
-        int tsq = Tsq(mPvEng[0]);
-        if (SqBb(tsq) & p->Filled())
-            tauntEvent = TAUNT_CAPTURE;
-        else {
-            if (Glob.gameValue > -15 && Glob.gameValue < 15) tauntEvent = TAUNT_BALANCE;
-            else {
-                if (Glob.gameValue < 0) tauntEvent = TAUNT_SMALL_MINUS;
-                if (Glob.gameValue > 0) tauntEvent = TAUNT_SMALL_PLUS;
-                if (Glob.gameValue < -50) tauntEvent = TAUNT_DISADVANTAGE;
-                if (Glob.gameValue > 50) tauntEvent = TAUNT_ADVANTAGE;
-                if (Glob.gameValue > 100) tauntEvent = TAUNT_WINNING;
-                if (Glob.gameValue < -100) tauntEvent = TAUNT_LOSING;
-                if (Glob.gameValue > 300) tauntEvent = TAUNT_CRUSHING;
-            }
-        }
-
+        int tauntEvent = DetermineTauntEvent(p, mPvEng[0]);
         PrintTaunt(tauntEvent);
     }
 }
