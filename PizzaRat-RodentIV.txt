@@ -1,0 +1,13 @@
+PizzaRat is a fork of Rodent version 4, originally written by { the guy }.
+PizzaRat was created by Yellowjacket Games to power their "Park Huster" NPCs in their game Hustle Chess.
+PizzaRat is governed by the same GPL3 terms as Rodent 4.
+
+Key Changes:
+
+Taunts / Chatter have been moved to a TXT file that is loaded at runtime.  
+ Previously these were in a code file, making it less intuitive to edit taunts or add functionality.
+
+Personalities now contain taunt/chatter configurations on a per-character basis.
+
+todo; more intuitive personality configurator webapp
+todo; procgen personality maker
