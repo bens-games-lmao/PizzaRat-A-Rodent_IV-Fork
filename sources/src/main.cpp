@@ -158,6 +158,10 @@ void cGlobals::Init() {
     tauntIntensity  = 100;
     tauntRudeness   = 50;
     tauntWhenLosing = 50;
+
+    // default time / hustle behaviour
+    timeNervousness = 50;
+    blitzHustle     = 50;
 }
 
 bool cGlobals::CanReadBook() {

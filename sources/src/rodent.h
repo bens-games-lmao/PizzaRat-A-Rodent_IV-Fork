@@ -756,6 +756,8 @@ class cGlobals {
     int tauntIntensity;      // 0-100, how often to actually print a taunt when triggered
     int tauntRudeness;       // 0-100, how "rude" the taunts should be (reserved for future use)
     int tauntWhenLosing;     // 0-100, chance to still taunt when in a worse position
+    int timeNervousness;     // 0-100, higher = moves faster under time pressure
+    int blitzHustle;         // 0-100, higher = uses less time when opponent is low on time
 
     void ClearData();
     void Init();

@@ -65,6 +65,8 @@ void PrintUciOptions() {
         printf("option name TauntIntensity type spin default %d min 0 max 100\n", Glob.tauntIntensity);
         printf("option name TauntRudeness type spin default %d min 0 max 100\n", Glob.tauntRudeness);
         printf("option name TauntWhenLosing type spin default %d min 0 max 100\n", Glob.tauntWhenLosing);
+        printf("option name TimeNervousness type spin default %d min 0 max 100\n", Glob.timeNervousness);
+        printf("option name BlitzHustle type spin default %d min 0 max 100\n", Glob.blitzHustle);
         printf("option name UCI_Elo type spin default %d min 800 max 2800\n", Par.elo);
     }
 
@@ -365,6 +367,10 @@ void ParseSetoption(const char *ptr) {
         Glob.tauntRudeness = atoi(value);
     } else if (strcmp(name, "tauntwhenlosing") == 0)                         {
         Glob.tauntWhenLosing = atoi(value);
+    } else if (strcmp(name, "timenervousness") == 0)                         {
+        Glob.timeNervousness = atoi(value);
+    } else if (strcmp(name, "blitzhustle") == 0)                             {
+        Glob.blitzHustle = atoi(value);
     } else if (strcmp(name, "verbose") == 0)                                 {
         valuebool(Glob.isNoisy, value);
     } else if (strcmp(name, "uci_limitstrength") == 0)                       {

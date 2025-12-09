@@ -1,0 +1,26 @@
+; Old Timer 1600 - solid, positional park regular.
+
+setoption name UCI_LimitStrength value true
+setoption name UCI_Elo value 1600
+
+; prefers quieter games, low taunt volume
+setoption name Taunting value true
+setoption name TauntFile value taunts.txt
+setoption name TauntIntensity value 30
+setoption name TauntRudeness value 20
+setoption name TauntWhenLosing value 40
+
+; time usage: not very nervous, low hustle
+setoption name SlowMover value 105
+setoption name TimeNervousness value 40
+setoption name BlitzHustle value 40
+
+; evaluation tweaks: more structural, less all-out attack
+setoption name OwnAttack value 110
+setoption name OppAttack value 110
+setoption name OwnMobility value 100
+setoption name OppMobility value 100
+setoption name PawnStorm value 90
+setoption name PawnShield value 115
+
+

@@ -292,6 +292,22 @@ void ParseGo(POS *p, const char *ptr) {
         int base = p->mSide == WC ? wtime : btime;
         int inc  = p->mSide == WC ? winc  : binc;
         cEngine::SetMoveTime(base, inc, movestogo);
+
+        // Character-specific time usage tweaks.
+        // Higher TimeNervousness -> uses slightly less time when base is low.
+        if (base >= 0 && base < 30000 && Glob.timeNervousness > 50) {
+            int delta = Glob.timeNervousness - 50;   // 1..50
+            int scale = 100 - delta / 2;             // 99..75
+            cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;
+        }
+
+        // Higher BlitzHustle -> uses slightly less time when opponent is low on time.
+        int oppTime = (p->mSide == WC ? btime : wtime);
+        if (oppTime >= 0 && base >= 0 && oppTime < base && Glob.blitzHustle > 50) {
+            int delta = Glob.blitzHustle - 50;       // 1..50
+            int scale = 100 - delta / 2;             // 99..75
+            cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;
+        }
     }
 
     // set global variables

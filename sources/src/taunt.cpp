@@ -26,7 +26,21 @@ enum TauntCategory {
     TAUNT_CAT_COUNT
 };
 
-static std::vector<std::string> s_taunts[TAUNT_CAT_COUNT];
+// Simple tag bits to allow multi-dimensional taunt selection.
+// Tags are optional; sections without tags are treated as neutral.
+enum TauntTag {
+    TAG_RUDE      = 1 << 0,
+    TAG_POLITE    = 1 << 1,
+    TAG_SELFDEP   = 1 << 2, // self-deprecating
+    TAG_STREET    = 1 << 3  // street / hustler flavor
+};
+
+struct TauntEntry {
+    std::string text;
+    unsigned    tags; // combination of TauntTag bits
+};
+
+static std::vector<TauntEntry> s_taunts[TAUNT_CAT_COUNT];
 static bool s_tauntsLoaded = false;
 
 static void Trim(std::string &s) {
@@ -63,6 +77,17 @@ static TauntCategory CategoryFromName(const std::string &name) {
     return TAUNT_CAT_GENERAL;
 }
 
+static unsigned TagFromName(const std::string &name) {
+
+    // Tags are expected to be UPPERCASE ASCII in config, e.g. [WINNING;RUDE;STREET]
+    if (name == "RUDE")      return TAG_RUDE;
+    if (name == "POLITE")    return TAG_POLITE;
+    if (name == "SELFDEP")   return TAG_SELFDEP;
+    if (name == "STREET")    return TAG_STREET;
+
+    return 0u;
+}
+
 static bool LoadTauntsFile(const char *fileName) {
 
     std::ifstream in(fileName);
@@ -71,6 +96,7 @@ static bool LoadTauntsFile(const char *fileName) {
 
     std::string line;
     TauntCategory current = TAUNT_CAT_GENERAL;
+    unsigned currentTags = 0u;
 
     while (std::getline(in, line)) {
 
@@ -85,12 +111,31 @@ static bool LoadTauntsFile(const char *fileName) {
         if (line.front() == '[' && line.back() == ']') {
             std::string section = line.substr(1, line.size() - 2);
             Trim(section);
-            if (!section.empty())
-                current = CategoryFromName(section);
+            if (!section.empty()) {
+                // Allow section headers of the form: CATEGORY or CATEGORY;TAG1;TAG2
+                std::string::size_type pos = section.find(';');
+                std::string base = (pos == std::string::npos) ? section : section.substr(0, pos);
+                Trim(base);
+                if (!base.empty())
+                    current = CategoryFromName(base);
+
+                currentTags = 0u;
+                while (pos != std::string::npos) {
+                    std::string::size_type next = section.find(';', pos + 1);
+                    std::string tag = section.substr(pos + 1, next == std::string::npos ? std::string::npos : next - pos - 1);
+                    Trim(tag);
+                    if (!tag.empty())
+                        currentTags |= TagFromName(tag);
+                    pos = next;
+                }
+            }
             continue;
         }
 
-        s_taunts[current].push_back(line);
+        TauntEntry entry;
+        entry.text = line;
+        entry.tags = currentTags;
+        s_taunts[current].push_back(entry);
     }
 
     return true;
@@ -135,15 +180,55 @@ static bool ShouldTauntNow(int eventType) {
     return (std::rand() % 100) < Glob.tauntIntensity;
 }
 
+static bool PassRudenessFilter(const TauntEntry &e) {
+
+    // If no rudeness-related tags, always allowed.
+    const unsigned rudeMask = TAG_RUDE | TAG_POLITE;
+    if ((e.tags & rudeMask) == 0)
+        return true;
+
+    int r = Glob.tauntRudeness;
+
+    // Low rudeness: avoid explicitly RUDE lines when possible.
+    if (r <= 33 && (e.tags & TAG_RUDE))
+        return false;
+
+    // High rudeness: avoid explicitly POLITE lines when possible.
+    if (r >= 67 && (e.tags & TAG_POLITE))
+        return false;
+
+    // Mid-range or neutral: accept both.
+    return true;
+}
+
 static void PrintRandomTaunt(TauntCategory cat) {
 
-    std::vector<std::string> &v = s_taunts[cat];
+    std::vector<TauntEntry> &v = s_taunts[cat];
 
     if (v.empty())
         return;
 
-    const std::string &word = v[std::rand() % v.size()];
-    std::cout << "info string " << word << std::endl;
+    // First try to build a filtered list according to rudeness.
+    std::vector<int> candidates;
+    candidates.reserve(v.size());
+
+    for (int i = 0; i < (int)v.size(); ++i) {
+        if (PassRudenessFilter(v[i]))
+            candidates.push_back(i);
+    }
+
+    const TauntEntry *chosen = nullptr;
+
+    if (!candidates.empty()) {
+        int idx = candidates[std::rand() % candidates.size()];
+        chosen = &v[idx];
+    } else {
+        // If filter removed everything, fall back to the full list.
+        const int idx = std::rand() % v.size();
+        chosen = &v[idx];
+    }
+
+    std::cout << "info string " << chosen->text << std::endl;
 }
 
 } // namespace

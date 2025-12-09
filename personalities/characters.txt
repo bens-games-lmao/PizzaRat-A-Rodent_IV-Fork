@@ -4,4 +4,6 @@
 
 Amanda=amanda.txt
 WSP_Hustler_1800=ws_hustler.txt
+OldTimer_1600=old_timer.txt
+SilentKiller_2200=silent_killer.txt
 

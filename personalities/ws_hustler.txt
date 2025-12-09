@@ -20,6 +20,8 @@ setoption name TauntWhenLosing value 60
 setoption name SlowMover value 110
 setoption name SearchSkill value 8
 setoption name Selectivity value 170
+setoption name TimeNervousness value 80
+setoption name BlitzHustle value 80
 
 ; --- Opening style -----------------------------------------------------------
 

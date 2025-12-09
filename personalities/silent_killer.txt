@@ -1,0 +1,26 @@
+; Silent Killer 2200 - strong, low talk, clinical style.
+
+setoption name UCI_LimitStrength value true
+setoption name UCI_Elo value 2200
+
+; almost no taunting
+setoption name Taunting value true
+setoption name TauntFile value taunts.txt
+setoption name TauntIntensity value 10
+setoption name TauntRudeness value 10
+setoption name TauntWhenLosing value 10
+
+; time usage: calm under pressure, minimal hustle focus
+setoption name SlowMover value 120
+setoption name TimeNervousness value 50
+setoption name BlitzHustle value 50
+
+; evaluation tweaks: stronger attack/technique
+setoption name OwnAttack value 150
+setoption name OppAttack value 90
+setoption name OwnMobility value 130
+setoption name OppMobility value 80
+setoption name PawnStorm value 95
+setoption name PawnShield value 110
+
+
