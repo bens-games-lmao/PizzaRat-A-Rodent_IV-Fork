@@ -7,3 +7,9 @@ WSP_Hustler_1800=ws_hustler.txt
 OldTimer_1600=old_timer.txt
 SilentKiller_2200=silent_killer.txt
 
+Tal_2100=tal.txt
+Spitfire_1900=spitfire.txt
+Grumpy_1700=grumpy.txt
+Defender_1500=defender.txt
+Simple_1200=simple.txt
+

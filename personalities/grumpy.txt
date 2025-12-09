@@ -1,6 +1,17 @@
 ; Grumpy personality for Rodent IV chess engine
 ; by Pawel Koziol
 ; attack, restraint, contempt, likes blocked positions
+; PIZZARAT: Grumpy park grinder preset
+setoption name UCI_LimitStrength value true
+setoption name UCI_Elo value 1700
+setoption name Taunting value true
+setoption name TauntFile value taunts.txt
+setoption name TauntIntensity value 50
+setoption name TauntRudeness value 60
+setoption name TauntWhenLosing value 60
+setoption name TimeNervousness value 55
+setoption name BlitzHustle value 55
+
 setoption name PawnValueMg value 90
 setoption name KnightValueMg value 385
 setoption name BishopValueMg value 390

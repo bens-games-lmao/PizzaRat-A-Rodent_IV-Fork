@@ -1,4 +1,15 @@
 ; Defender personality for Rodent IV chess engine
+; PIZZARAT: Solid defender preset
+setoption name UCI_LimitStrength value true
+setoption name UCI_Elo value 1500
+setoption name Taunting value true
+setoption name TauntFile value taunts.txt
+setoption name TauntIntensity value 25
+setoption name TauntRudeness value 20
+setoption name TauntWhenLosing value 30
+setoption name TimeNervousness value 40
+setoption name BlitzHustle value 30
+
 setoption name PawnValueMg value 90
 setoption name KnightValueMg value 380
 setoption name BishopValueMg value 390
