@@ -42,6 +42,7 @@ struct TauntEntry {
 
 static std::vector<TauntEntry> s_taunts[TAUNT_CAT_COUNT];
 static bool s_tauntsLoaded = false;
+static std::string s_loadedConfigFile;
 
 static void Trim(std::string &s) {
     const char *ws = " \t\r\n";
@@ -142,18 +143,40 @@ static bool LoadTauntsFile(const char *fileName) {
 }
 
 static void EnsureTauntsLoaded() {
-    if (s_tauntsLoaded)
+    // Reload only if we haven't loaded yet or the configured file name changed.
+    if (s_tauntsLoaded && s_loadedConfigFile == Glob.tauntFile)
         return;
 
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    // Clear existing taunts before re-loading.
+    for (int i = 0; i < TAUNT_CAT_COUNT; ++i)
+        s_taunts[i].clear();
 
-    const char *fileName = Glob.tauntFile.empty() ? "taunts.txt" : Glob.tauntFile.c_str();
-    if (!LoadTauntsFile(fileName)) {
-        // fallback to default name if custom file failed
-        if (std::strcmp(fileName, "taunts.txt") != 0)
-            LoadTauntsFile("taunts.txt");
+    const char *requested = Glob.tauntFile.empty() ? "taunts.txt" : Glob.tauntFile.c_str();
+    const char *used = requested;
+
+    bool ok = LoadTauntsFile(requested);
+
+    if (!ok && std::strcmp(requested, "taunts.txt") != 0) {
+        // Fallback to default file name if custom file failed.
+        ok = LoadTauntsFile("taunts.txt");
+        used = "taunts.txt";
     }
 
+    int total = 0;
+    for (int i = 0; i < TAUNT_CAT_COUNT; ++i)
+        total += static_cast<int>(s_taunts[i].size());
+
+    if (Glob.isNoisy) {
+        if (!ok || total == 0) {
+            std::cout << "info string taunts: failed to load from '" << requested
+                      << "', using '" << used << "' (" << total << " lines)" << std::endl;
+        } else {
+            std::cout << "info string taunts loaded from '" << used
+                      << "' (" << total << " lines)" << std::endl;
+        }
+    }
+
+    s_loadedConfigFile = Glob.tauntFile;
     s_tauntsLoaded = true;
 }
 

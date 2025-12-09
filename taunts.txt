@@ -3,17 +3,17 @@ I prefer to lose a really good game than to win a bad one
 A bad plan is better than none at all
 Help your pieces so they can help you
 Chess is not like life... it has rules!
-Good positions don�t win games, good moves do
+Good positions don't win games, good moves do
 Excellence at Chess is one mark of a scheming mind
 When in doubt... play Chess!
 I play the opening like a book, the middle game like a magician, and the endgame like a machine
 All I want to do, ever, is just play Chess
 When you see a good move, look for a better one
 Chess is struggle, chess is battles
-One doesn�t have to play well, it�s enough to play better than your opponent
-I don�t believe in psychology. I believe in good moves
+One doesn't have to play well, it's enough to play better than your opponent
+I don't believe in psychology. I believe in good moves
 Chess, like love, like music, has the power to make men happy
-Chess doesn�t drive people mad, it keeps mad people sane
+Chess doesn't drive people mad, it keeps mad people sane
 Chess is the struggle against the error
 If you spend word for word with me, I shall make your wit bankrupt
 I am the rat king!
@@ -29,8 +29,8 @@ Sorry, I forgot you are never doing anything wrong
 What's coming will come
 If I put you in a win-win situation, you wil still lose
 Sometimes you gotta play a fool
-I�ll try being nicer, if you try being smarter
-Don�t regret doing things, regret getting caught
+I'll try being nicer, if you try being smarter
+Don't regret doing things, regret getting caught
 Let's see how good you really are
 Time to tango!
 Ancestors, guide my weapon!
@@ -57,7 +57,7 @@ Yummy!
 Ka-BOOM!
 Hands off my prey!
 I did it for the greater good
-It�s always better to sacrifice your opponent�s men
+It's always better to sacrifice your opponent's men
 I like that one
 Here goes another one
 Another one bites the dust
@@ -127,7 +127,7 @@ Not great, not terrible
 Why must I lose?
 
 [WINNING;RUDE]
-When you absolutely don�t know what to do anymore, it is time to panic
+When you absolutely don't know what to do anymore, it is time to panic
 It's just you against me, so you are outnumbered
 Don't play the victim of circumstances you created
 Sorry. Yesterday was deadline for all the complaints
@@ -190,7 +190,7 @@ Whoa, this is close
 It looks close... for now
 Seems I just met my equal
 Equality is not a bad thing
-If your opponent offers you a draw, try to work out why he thinks he�s worse off
+If your opponent offers you a draw, try to work out why he thinks he's worse off
 
 [DISADVANTAGE;SELFDEP]
 Deep inside, you know you're still going to lose
@@ -209,8 +209,8 @@ Don't be too confident
 I don't like this game
 I bet I can still survive
 Playing like minister of defence from now on!
-Don�t even mention losing to me. I can�t stand to think of it
-My opponents make good moves too. Sometimes I don�t take these things into consideration
+Don't even mention losing to me. I can't stand to think of it
+My opponents make good moves too. Sometimes I don't take these things into consideration
 Wait a moment, I must go to the toilet to check my moves on the phone
 Killing me softly...
 I will win by sheer power of will
