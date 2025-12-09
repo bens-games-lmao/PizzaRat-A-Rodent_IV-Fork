@@ -41,7 +41,7 @@ Are you kidding me, scout?
 Interesting position
 You should feel honored to face me
 
-[CAPTURE]
+[CAPTURE;RUDE]
 No mercy for you!
 Target practice!
 Who let you in here?
@@ -64,7 +64,7 @@ Another one bites the dust
 Didn't you know that rodents prey on helpless chess pieces?
 Less wood, less to think about
 
-[USER_BLUNDER]
+[USER_BLUNDER;RUDE]
 One bad move nullifies forty good ones
 What a howler!
 I'm afraid it is a really bad move
@@ -88,7 +88,7 @@ You cannot play at Chess if you are kind-hearted
 A good player is always lucky
 Rats gonna eat your bones!
 
-[ENGINE_BLUNDER]
+[ENGINE_BLUNDER;SELFDEP]
 Did I really play that?
 I must have been distracted
 Normally I don't do that
@@ -108,7 +108,7 @@ Stop hypnothysing me!
 You might win this one, but tomorrow belongs to me!
 Chess is a fairy tale of 1001 blunders
 
-[LOSING]
+[LOSING;SELFDEP]
 Squeak!
 May the cat eat me, and may the devil eat the cat
 Just don't call pest control on me
@@ -126,7 +126,7 @@ My day will come!
 Not great, not terrible
 Why must I lose?
 
-[WINNING]
+[WINNING;RUDE]
 When you absolutely don�t know what to do anymore, it is time to panic
 It's just you against me, so you are outnumbered
 Don't play the victim of circumstances you created
@@ -152,7 +152,7 @@ My opponents need to be upgraded
 I guess you taste like cheese
 If I had a voice, I would sing
 
-[CRUSHING]
+[CRUSHING;RUDE]
 My head is filled with sunshine
 What if I politely ask you to resign?
 Gonna give up soon?
@@ -166,7 +166,7 @@ Seek your chances in the next game, this one is beyond salvation
 I enjoy crushing my opponent's ego
 The best things in life: beat you at chess, take your king, hear the lamentations of your pieces
 
-[ADVANTAGE]
+[ADVANTAGE;RUDE]
 Which one of us is the better player?
 I'm beginning to like my position
 Don't you feel somewhat insecure?
@@ -183,7 +183,7 @@ You'll have to do a lot better than that
 I hope to win this one
 It's good to be good!
 
-[BALANCE]
+[BALANCE;POLITE]
 The cosmic scales rest in balance
 It looks equal to me
 Whoa, this is close
@@ -192,7 +192,7 @@ Seems I just met my equal
 Equality is not a bad thing
 If your opponent offers you a draw, try to work out why he thinks he�s worse off
 
-[DISADVANTAGE]
+[DISADVANTAGE;SELFDEP]
 Deep inside, you know you're still going to lose
 I'm beginning to dislike my position
 Stop gloating, it ain't over yet
@@ -215,7 +215,7 @@ Wait a moment, I must go to the toilet to check my moves on the phone
 Killing me softly...
 I will win by sheer power of will
 
-[ESCAPE]
+[ESCAPE;POLITE]
 I feel alive again!
 And here we witness a well-deserved reversal
 Lady Luck just smiled to me
@@ -229,7 +229,7 @@ This game should go like this from the very beginning
 La la la, la la la
 And now the real game begins
 
-[GAINING]
+[GAINING;POLITE]
 It's getting better all the time!
 Was it, ahem, a mouse slip?
 My fortunes improve!

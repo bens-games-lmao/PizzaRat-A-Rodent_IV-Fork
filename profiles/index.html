@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>PizzaRat Characters</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>PizzaRat Characters</h1>
+            <p class="subtitle">
+                Click-and-go profiles for your Washington Square Park hustlers.
+            </p>
+        </header>
+
+        <main class="card-grid">
+            <!-- Park Hustler (1800) -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Park Hustler (1800)</h2>
+                    <p class="role">Washington Square regular · Aggressive trash-talker</p>
+                    <p class="elo">Target strength: ~1800 Elo</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> High (sharp, tactical positions)</li>
+                        <li><strong>Talkativeness:</strong> High (frequent RUDE/STREET taunts)</li>
+                        <li><strong>Rudeness:</strong> High</li>
+                        <li><strong>Hustle:</strong> High (plays faster in time scrambles)</li>
+                    </ul>
+                    <p class="hint">Backed by personality <code>ws_hustler.txt</code> and taunts <code>taunts_ws_hustler.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Old Timer (1600) -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Old Timer (1600)</h2>
+                    <p class="role">Solid park regular · Positional grinder</p>
+                    <p class="elo">Target strength: ~1600 Elo</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Low–Medium (prefers structure over chaos)</li>
+                        <li><strong>Talkativeness:</strong> Low (occasional comments)</li>
+                        <li><strong>Rudeness:</strong> Low (leans on POLITE / SELFDEP lines)</li>
+                        <li><strong>Hustle:</strong> Low (steady time usage)</li>
+                    </ul>
+                    <p class="hint">Backed by personality <code>old_timer.txt</code> and base taunts <code>taunts.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Silent Killer (2200) -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Silent Killer (2200)</h2>
+                    <p class="role">Strong local master · Minimal chatter</p>
+                    <p class="elo">Target strength: ~2200 Elo</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium–High (clinical attacks, good technique)</li>
+                        <li><strong>Talkativeness:</strong> Very low</li>
+                        <li><strong>Rudeness:</strong> Very low</li>
+                        <li><strong>Hustle:</strong> Medium (calm under pressure)</li>
+                    </ul>
+                    <p class="hint">Backed by personality <code>silent_killer.txt</code> and base taunts <code>taunts.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Amanda (example existing personality) -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Amanda (Rodent Personality)</h2>
+                    <p class="role">Attacking style · Mobility-focused</p>
+                    <p class="elo">Target strength: engine-level (configurable)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> High (designed as an attacker)</li>
+                        <li><strong>Talkativeness:</strong> Uses default taunt settings</li>
+                        <li><strong>Rudeness:</strong> Medium (inherits tags from <code>taunts.txt</code>)</li>
+                        <li><strong>Hustle:</strong> Default engine time behavior</li>
+                    </ul>
+                    <p class="hint">Backed by <code>amanda.txt</code>; can be wired as a Character alias.</p>
+                </div>
+            </article>
+
+            <!-- Ampere -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Ampere</h2>
+                    <p class="role">Attacking personality · Cares about pawn structure</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> High (attacker with positional sense)</li>
+                        <li><strong>Talkativeness:</strong> Uses default taunt settings</li>
+                        <li><strong>Rudeness:</strong> Medium (inherits from <code>taunts.txt</code>)</li>
+                        <li><strong>Hustle:</strong> Default engine time behavior</li>
+                    </ul>
+                    <p class="hint">Backed by <code>ampere.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Cloe -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Cloe</h2>
+                    <p class="role">Likes closed positions · More positional than tactical</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Low–Medium (prefers blocked structures)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>cloe.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Deborah -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Deborah</h2>
+                    <p class="role">Defensive player who likes bishops</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Low–Medium (solid, bishop-friendly)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>deborah.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Defender -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Defender</h2>
+                    <p class="role">Solid, defensive personality</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Low (prefers defence and safety)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>defender.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Grumpy -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Grumpy</h2>
+                    <p class="role">Attack, restraint, contempt · Likes blocked positions</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium–High (attacks from closed structures)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium–High (good fit for RUDE lines)</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>grumpy.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Morphy -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Morphy</h2>
+                    <p class="role">Classical attacking style inspired by Paul Morphy</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> High (initiative and open games)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>morphy.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Nimzowitsch -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Nimzowitsch</h2>
+                    <p class="role">Hypermodern, prophylactic style</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium (indirect pressure, control)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>nimzowitsch.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Partisan -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Partisan</h2>
+                    <p class="role">Emphasises attack but plays stealthy openings</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> High (attacking once developed)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>partisan.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Pawnsacker -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Pawnsacker</h2>
+                    <p class="role">Balanced, slightly less materialistic · Likes pawn sacs</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium–High (dynamic pawn play)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>pawnsacker.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Pedrita -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Pedrita</h2>
+                    <p class="role">Pawns, defence, restraint</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Low–Medium (defensive, pawn-focused)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>pedrita.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Preston -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Preston</h2>
+                    <p class="role">Materialistic moderate attacker</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium (balanced attack vs material)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>preston.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Simple -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Simple</h2>
+                    <p class="role">Simplified evaluation · Good baseline / training bot</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Neutral (focus on basic piece-square logic)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>simple.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Spitfire -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Spitfire</h2>
+                    <p class="role">Legacy Rodent IV personality · Lively attacking style</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium–High (name suggests active play)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>spitfire.txt</code>; consider calibrating taunts/time for PIZZARAT.</p>
+                </div>
+            </article>
+
+            <!-- Strangler -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Strangler</h2>
+                    <p class="role">Squeezing style · Wins by slow positional pressure</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> Medium (pressure rather than wild tactics)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>strangler.txt</code>.</p>
+                </div>
+            </article>
+
+            <!-- Tal -->
+            <article class="card">
+                <div class="portrait">
+                    <div class="portrait-label">Portrait</div>
+                </div>
+                <div class="card-body">
+                    <h2 class="name">Tal</h2>
+                    <p class="role">Inspired by Mikhail Tal · Sacrificial attacking style</p>
+                    <p class="elo">Strength: engine-level (via UCI_Elo)</p>
+                    <ul class="traits">
+                        <li><strong>Aggression:</strong> High (sacrifices and initiative)</li>
+                        <li><strong>Talkativeness:</strong> Default</li>
+                        <li><strong>Rudeness:</strong> Medium–High (fits RUDE taunts well)</li>
+                        <li><strong>Hustle:</strong> Default</li>
+                    </ul>
+                    <p class="hint">Backed by <code>tal.txt</code>; prime candidate for a flashy park hustler.</p>
+                </div>
+            </article>
+        </main>
+    </div>
+</body>
+</html>
+
+

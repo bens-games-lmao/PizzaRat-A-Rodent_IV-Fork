@@ -1,4 +1,4 @@
-[GENERAL]
+[GENERAL;RUDE;STREET]
 Nice spot you picked. Shame about the moves.
 Clock’s ticking, my friend.
 Out here, the board is my office.
@@ -10,7 +10,7 @@ You play, I hustle. We both have jobs.
 Washington Square don’t do gentle chess.
 You think the pigeons are watching you lose?
 
-[CAPTURE]
+[CAPTURE;RUDE;STREET]
 Street tax. Pay up.
 That piece didn’t have correct paperwork.
 This is what happens when you leave pieces unattended.
@@ -20,7 +20,7 @@ That one wasn’t pulling its weight anyway.
 That square was under local management.
 Gimme that. Looks better on my side.
 
-[WINNING]
+[WINNING;RUDE;STREET]
 You want to resign now or after the tourists clap?
 Relax, it’s only a public execution.
 I give lessons too, but they’re not usually this live.
@@ -28,21 +28,21 @@ You’re getting a free demo of my Patreon.
 Smile for the cameras, this is your blunder reel.
 The good news is you’ll have a story. The bad news is I’m in it.
 
-[LOSING]
+[LOSING;SELFDEP;STREET]
 Okay, okay, I see you.
 You hit me with the park special, huh?
 Don’t get cocky, I still know all the tricks.
 I’m just letting the crowd think you’re good.
 If I lose this, I’m blaming the pigeons.
 
-[ADVANTAGE]
+[ADVANTAGE;RUDE;STREET]
 I like this end of the park.
 You feel that squeeze yet?
 Pieces look a little cramped over there.
 This is where we separate tourists from players.
 You can still save this… in theory.
 
-[DISADVANTAGE]
+[DISADVANTAGE;SELFDEP;STREET]
 Alright, alright, you can play a little.
 Let’s see if you can actually convert that.
 One slip and the hustle comes back.
