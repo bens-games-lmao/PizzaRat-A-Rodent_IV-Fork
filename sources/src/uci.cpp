@@ -227,6 +227,29 @@ void cEngine::SetMoveTime(int base, int inc, int movestogo) {
     }
 }
 
+// Apply character-specific time usage tweaks based on global hustle knobs.
+// - Higher TimeNervousness: use slightly less time when our base time is low.
+// - Higher BlitzHustle: use slightly less time when opponent's clock is lower than ours.
+static void ApplyHustleScaling(int ourBaseTime, int oppBaseTime) {
+
+    if (ourBaseTime < 0)
+        return;
+
+    // Nervousness: adjust when we are in time trouble.
+    if (ourBaseTime < 30000 && Glob.timeNervousness > 50) {
+        int delta = Glob.timeNervousness - 50;   // 1..50
+        int scale = 100 - delta / 2;             // 99..75
+        cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;
+    }
+
+    // Hustle: adjust when opponent is lower on time than we are.
+    if (oppBaseTime >= 0 && oppBaseTime < ourBaseTime && Glob.blitzHustle > 50) {
+        int delta = Glob.blitzHustle - 50;       // 1..50
+        int scale = 100 - delta / 2;             // 99..75
+        cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;
+    }
+}
+
 void ParseGo(POS *p, const char *ptr) {
 
     char token[80];
@@ -289,25 +312,12 @@ void ParseGo(POS *p, const char *ptr) {
     // set move time
 
     if (!strict_time) {
-        int base = p->mSide == WC ? wtime : btime;
-        int inc  = p->mSide == WC ? winc  : binc;
+        int base    = p->mSide == WC ? wtime : btime;
+        int inc     = p->mSide == WC ? winc  : binc;
+        int oppTime = p->mSide == WC ? btime : wtime;
+
         cEngine::SetMoveTime(base, inc, movestogo);
-
-        // Character-specific time usage tweaks.
-        // Higher TimeNervousness -> uses slightly less time when base is low.
-        if (base >= 0 && base < 30000 && Glob.timeNervousness > 50) {
-            int delta = Glob.timeNervousness - 50;   // 1..50
-            int scale = 100 - delta / 2;             // 99..75
-            cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;
-        }
-
-        // Higher BlitzHustle -> uses slightly less time when opponent is low on time.
-        int oppTime = (p->mSide == WC ? btime : wtime);
-        if (oppTime >= 0 && base >= 0 && oppTime < base && Glob.blitzHustle > 50) {
-            int delta = Glob.blitzHustle - 50;       // 1..50
-            int scale = 100 - delta / 2;             // 99..75
-            cEngine::msMoveTime = (cEngine::msMoveTime * scale) / 100;
-        }
+        ApplyHustleScaling(base, oppTime);
     }
 
     // set global variables
