@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <unordered_map>
+#include <cstring>
 
 namespace {
 
@@ -101,10 +102,37 @@ static void EnsureTauntsLoaded() {
 
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
-    // Default file name; relative to current working directory.
-    LoadTauntsFile("taunts.txt");
+    const char *fileName = Glob.tauntFile.empty() ? "taunts.txt" : Glob.tauntFile.c_str();
+    if (!LoadTauntsFile(fileName)) {
+        // fallback to default name if custom file failed
+        if (std::strcmp(fileName, "taunts.txt") != 0)
+            LoadTauntsFile("taunts.txt");
+    }
 
     s_tauntsLoaded = true;
+}
+
+static bool ShouldTauntNow(int eventType) {
+
+    if (!Glob.useTaunting)
+        return false;
+
+    if (Glob.tauntIntensity <= 0)
+        return false;
+
+    // If we are in a clearly worse state, optionally dial down taunts
+    bool losingEvent = (eventType == TAUNT_DISADVANTAGE ||
+                        eventType == TAUNT_LOSING);
+
+    if (losingEvent && Glob.tauntWhenLosing < 100) {
+        if ((std::rand() % 100) >= Glob.tauntWhenLosing)
+            return false;
+    }
+
+    if (Glob.tauntIntensity >= 100)
+        return true;
+
+    return (std::rand() % 100) < Glob.tauntIntensity;
 }
 
 static void PrintRandomTaunt(TauntCategory cat) {
@@ -125,6 +153,9 @@ static void PrintRandomTaunt(TauntCategory cat) {
 void PrintTaunt(int eventType) {
 
     EnsureTauntsLoaded();
+
+    if (!ShouldTauntNow(eventType))
+        return;
 
     Glob.currentTaunt = eventType;
 

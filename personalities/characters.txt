@@ -1,0 +1,7 @@
+; PIZZARAT character aliases
+; Format: CharacterAlias=PersonalityFile
+; Example below binds character "Amanda" to existing personality file "amanda.txt".
+
+Amanda=amanda.txt
+WSP_Hustler_1800=ws_hustler.txt
+

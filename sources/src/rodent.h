@@ -48,6 +48,7 @@ If not, see <http://www.gnu.org/licenses/>.
 
 #include <cstdint>
 #include <cinttypes>
+#include <string>
 
 //#define USE_TUNING
 
@@ -750,6 +751,12 @@ class cGlobals {
     int previousTaunt;
     int currentTaunt;
 
+    // Taunt / chatter configuration (can be overridden via personality/character)
+    std::string tauntFile;   // path to taunts config file
+    int tauntIntensity;      // 0-100, how often to actually print a taunt when triggered
+    int tauntRudeness;       // 0-100, how "rude" the taunts should be (reserved for future use)
+    int tauntWhenLosing;     // 0-100, chance to still taunt when in a worse position
+
     void ClearData();
     void Init();
     bool CanReadBook();
@@ -946,6 +953,7 @@ void PrintUciOptions();
 void ReadLine(char *, int);
 void ReadPersonality(const char *fileName);
 void ReadThreadNumber(const char *fileName);
+void ReadCharacters(const char *fileName);
 void UciLoop();
 int PolyglotRandom(int n);
 int Percent(int val, int perc);

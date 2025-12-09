@@ -112,6 +112,9 @@ if (Glob.isNoisy) {
     if (Glob.usePersonalityFiles)
         ReadPersonality("default.txt");
 
+    // read character aliases (for high-level presets)
+    ReadCharacters("characters.txt");
+
     UciLoop();
 }
 
@@ -149,6 +152,12 @@ void cGlobals::Init() {
     isConsole = true;
     eloSlider = true;
 	multiPv = 1;
+
+    // default taunt configuration; can be overridden by personality/character files
+    tauntFile       = "taunts.txt";
+    tauntIntensity  = 100;
+    tauntRudeness   = 50;
+    tauntWhenLosing = 50;
 }
 
 bool cGlobals::CanReadBook() {

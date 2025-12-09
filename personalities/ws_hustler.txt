@@ -1,0 +1,47 @@
+; Washington Square Park hustler for PIZZARAT (Rodent 5)
+; Sub-master strength, practical attacking style, lots of table talk.
+
+; --- Strength / weakening ----------------------------------------------------
+
+setoption name UCI_LimitStrength value true
+setoption name UCI_Elo value 1800
+
+; --- Taunt / chatter configuration ------------------------------------------
+
+setoption name Taunting value true
+setoption name TauntFile value taunts_ws_hustler.txt
+setoption name TauntIntensity value 75
+setoption name TauntRudeness value 80
+setoption name TauntWhenLosing value 60
+
+; --- Time usage / search behaviour ------------------------------------------
+
+; Think a bit more than default, but not super deep (street practical).
+setoption name SlowMover value 110
+setoption name SearchSkill value 8
+setoption name Selectivity value 170
+
+; --- Opening style -----------------------------------------------------------
+
+; Use main book and gambit guide to get sharp, hustler-friendly positions.
+setoption name UseBook value true
+setoption name GuideBookFile value ph-gambitbook.bin
+setoption name MainBookFile value rodent.bin
+
+; --- Evaluation tweaks: slightly aggressive, swindly ------------------------
+
+; Bias toward attacking chances and activity.
+setoption name OwnAttack value 140
+setoption name OppAttack value 90
+setoption name OwnMobility value 120
+setoption name OppMobility value 80
+setoption name KingTropism value 30
+
+; Encourage pawn storms and imbalanced positions.
+setoption name PawnStorm value 110
+setoption name PawnShield value 105
+
+; Small positive contempt: prefers to keep playing for a win.
+setoption name Contempt value 10
+
+

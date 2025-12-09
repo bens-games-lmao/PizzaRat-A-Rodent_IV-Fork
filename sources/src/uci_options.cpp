@@ -31,6 +31,16 @@ struct {
     int count;
 } pers_aliases;
 
+// Character aliases (higher-level presets that select a personality file)
+#define CHARALIAS_ALEN       32
+#define CHARALIAS_PLEN       256
+#define CHARALIAS_MAXALIASES 100
+struct {
+    char alias[CHARALIAS_MAXALIASES][CHARALIAS_ALEN];
+    char path[CHARALIAS_MAXALIASES][CHARALIAS_PLEN];
+    int count;
+} char_aliases;
+
 void PrintSingleOption(int ind) {
     printf("option name %s type spin default %d min %d max %d\n",
             paramNames[ind], Par.values[ind], Par.min_val[ind], Par.max_val[ind]);
@@ -51,6 +61,10 @@ void PrintUciOptions() {
         printf("option name UCI_LimitStrength type check default %s\n", Par.useWeakening ? "true" : "false");
         printf("option name PrintPv type check default %s\n", Glob.printPv ? "true" : "false");
         printf("option name Taunting type check default %s\n", Glob.useTaunting ? "true" : "false");
+        printf("option name TauntFile type string default %s\n", Glob.tauntFile.c_str());
+        printf("option name TauntIntensity type spin default %d min 0 max 100\n", Glob.tauntIntensity);
+        printf("option name TauntRudeness type spin default %d min 0 max 100\n", Glob.tauntRudeness);
+        printf("option name TauntWhenLosing type spin default %d min 0 max 100\n", Glob.tauntWhenLosing);
         printf("option name UCI_Elo type spin default %d min 800 max 2800\n", Par.elo);
     }
 
@@ -61,6 +75,12 @@ void PrintUciOptions() {
             printf("option name Personality type combo default ---"); // `---` in case we want PersonalityFile
             for (int i = 0; i < pers_aliases.count; i++)
                 printf(" var %s", pers_aliases.alias[i]);
+            printf("\n");
+        }
+        if (char_aliases.count != 0) {
+            printf("option name Character type combo default ---");
+            for (int i = 0; i < char_aliases.count; i++)
+                printf(" var %s", char_aliases.alias[i]);
             printf("\n");
         }
     } else {
@@ -337,6 +357,14 @@ void ParseSetoption(const char *ptr) {
         valuebool(Glob.printPv, value);
     } else if (strcmp(name, "taunting") == 0)                                {
         valuebool(Glob.useTaunting, value);
+    } else if (strcmp(name, "tauntfile") == 0)                               {
+        Glob.tauntFile = value;
+    } else if (strcmp(name, "tauntintensity") == 0)                          {
+        Glob.tauntIntensity = atoi(value);
+    } else if (strcmp(name, "tauntrudeness") == 0)                           {
+        Glob.tauntRudeness = atoi(value);
+    } else if (strcmp(name, "tauntwhenlosing") == 0)                         {
+        Glob.tauntWhenLosing = atoi(value);
     } else if (strcmp(name, "verbose") == 0)                                 {
         valuebool(Glob.isNoisy, value);
     } else if (strcmp(name, "uci_limitstrength") == 0)                       {
@@ -366,6 +394,12 @@ void ParseSetoption(const char *ptr) {
                 ReadPersonality(pers_aliases.path[i]);
                 break;
             }
+    } else if (strcmp(name, "character") == 0 )                              {
+        for (int i = 0; i < char_aliases.count; i++)
+            if (strcmp(char_aliases.alias[i], value) == 0) {
+                ReadPersonality(char_aliases.path[i]);
+                break;
+            }
     }
 }
 
@@ -388,6 +422,51 @@ void ReadThreadNumber(const char * fileName) {
 
 	fclose(threadFile);
 
+}
+
+void ReadCharacters(const char *fileName) {
+
+    FILE *characterFile = NULL;
+
+    if (isabsolute(fileName)
+        || ChDirEnv("RIIIPERSONALITIES")
+        || ChDir(_PERSONALITIESPATH))
+        characterFile = fopen(fileName, "r");
+
+    if (Glob.isNoisy)
+        printf("info string reading characters '%s' (%s)\n",
+               fileName, characterFile == NULL ? "failure" : "success");
+
+    if (characterFile == NULL)
+        return;
+
+    char line[256]; char *pos;
+    int cnt = 0;
+
+    while (fgets(line, sizeof(line), characterFile)) {
+
+        while ((pos = strpbrk(line, "\r\n"))) *pos = '\0';
+
+        pos = strchr(line, '=');
+        if (!pos)
+            continue;
+
+        *pos = '\0';
+
+        if (cnt >= CHARALIAS_MAXALIASES)
+            break;
+
+        strncpy(char_aliases.alias[cnt], line, CHARALIAS_ALEN - 1);
+        char_aliases.alias[cnt][CHARALIAS_ALEN - 1] = '\0';
+
+        strncpy(char_aliases.path[cnt], pos + 1, CHARALIAS_PLEN - 1);
+        char_aliases.path[cnt][CHARALIAS_PLEN - 1] = '\0';
+
+        cnt++;
+    }
+
+    char_aliases.count = cnt;
+    fclose(characterFile);
 }
 
 void ReadPersonality(const char *fileName) {
