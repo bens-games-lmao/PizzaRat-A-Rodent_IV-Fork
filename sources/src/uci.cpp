@@ -23,7 +23,7 @@ If not, see <http://www.gnu.org/licenses/>.
 
 #ifdef USE_THREADS
     #include <thread>
-    using namespace std::literals::chrono_literals;
+    #include <chrono>
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -117,6 +117,8 @@ void UciLoop() {
 #else
             Engines.front().Bench(atoi(token));
 #endif
+        } else if (strcmp(token, "characterjson") == 0) {
+            DumpCharacterJson(ActiveCharacter);
         } else if (strcmp(token, "quit") == 0)       {
             exit(0);
         }
@@ -181,6 +183,38 @@ int cEngine::BulletCorrection(int time) {
     else return time;
 }
 
+// Enforce a minimum visible think time based on the configured move time.
+// This is used to decouple actual compute duration from wall-clock time:
+// even if the search finishes early on a fast machine, we can delay the
+// "bestmove" output to simulate a human opponent thinking.
+static void EnforceRoleplayDelay() {
+
+    if (cEngine::msMoveTime < 0)
+        return; // no time budget in effect (infinite / analysis)
+
+    if (cEngine::msRoleplayMinTime <= 0)
+        return;
+
+    for (;;) {
+        int elapsed = GetMS() - cEngine::msStartTime;
+        if (elapsed >= cEngine::msRoleplayMinTime)
+            break;
+
+        // Sleep briefly to avoid busy-waiting; use standard facilities
+        // when threads are enabled, otherwise fall back to a simple
+        // platform-specific helper.
+#ifdef USE_THREADS
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+#else
+    #if defined(_WIN32) || defined(_WIN64)
+        Sleep(1);
+    #else
+        usleep(1000);
+    #endif
+#endif
+    }
+}
+
 void ExtractMove(int *pv) {
 
     char bestmove_str[6], ponder_str[6];
@@ -188,9 +222,12 @@ void ExtractMove(int *pv) {
     MoveToStr(pv[0], bestmove_str);
     if (pv[1]) {
         MoveToStr(pv[1], ponder_str);
+        EnforceRoleplayDelay();
         printf("bestmove %s ponder %s\n", bestmove_str, ponder_str);
-    } else
+    } else {
+        EnforceRoleplayDelay();
         printf("bestmove %s\n", bestmove_str);
+    }
 }
 
 void cEngine::SetMoveTime(int base, int inc, int movestogo) {
@@ -267,6 +304,7 @@ void ParseGo(POS *p, const char *ptr) {
     // if (Par.use_ponder) movestogo = 38;
 
     cEngine::msMoveTime    = -1;
+    cEngine::msRoleplayMinTime = 0;
     cEngine::msMoveNodes   =  0;
     cEngine::msSearchDepth = 64;
 
@@ -320,6 +358,19 @@ void ParseGo(POS *p, const char *ptr) {
         ApplyHustleScaling(base, oppTime);
     }
 
+    // By default we use a percentage of the (possibly scaled) per-move
+    // budget as the minimum visible think time. This ensures that on
+    // fast hardware the engine does not move instantly, while keeping
+    // behaviour unchanged for analysis / infinite searches.
+    cEngine::msRoleplayMinTime = 0;
+    if (cEngine::msMoveTime > 0 && cEngine::msMoveTime < 100000000) {
+        int percent = ActiveCharacter.timeUsage.minThinkTimePercent;
+        if (percent > 0) {
+            cEngine::msRoleplayMinTime =
+                (cEngine::msMoveTime * percent) / 100;
+        }
+    }
+
     // set global variables
 
     cEngine::msStartTime = GetMS();
@@ -346,6 +397,7 @@ void ParseGo(POS *p, const char *ptr) {
         }
 
         if (pvb) {
+            EnforceRoleplayDelay();
             printf("bestmove %s\n", MoveToStr(pvb));
             return;
         }
@@ -389,7 +441,7 @@ void ParseGo(POS *p, const char *ptr) {
             // Check for timeout every 1 millisecond. This allows Rodent
             // to survive extreme time controls, like 1 s + 10 ms
 
-            std::this_thread::sleep_for(1ms);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
             if (!Glob.isTuning) CheckTimeout();
         }
     });

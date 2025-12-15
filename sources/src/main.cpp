@@ -118,8 +118,15 @@ if (Glob.isNoisy) {
     // read character aliases (for high-level presets)
     ReadCharacters("characters.txt");
 
-    if (Glob.isNoisy)
+    // After personalities and characters have been read, initialise and
+    // synchronise the high-level character profile with the effective state.
+    InitDefaultCharacterProfile(ActiveCharacter);
+    SnapshotFromEngineToCharacterProfile(ActiveCharacter, Par, Glob, GuideBook, MainBook);
+
+    if (Glob.isNoisy) {
         DumpPizzaratProfile();
+        DumpCharacterProfile(ActiveCharacter);
+    }
 
     UciLoop();
 }

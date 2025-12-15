@@ -1,0 +1,39 @@
+{
+  "id": "Simple_1200",
+  "description": "Imported from simple.txt",
+  "strength": {
+    "targetElo": 1200,
+    "useWeakening": true,
+    "searchSkill": 10,
+    "selectivity": 175,
+    "slowMover": 100
+  },
+  "books": {
+    "guideBookFile": "guide/simple.bin",
+    "mainBookFile": "rodent.bin",
+    "maxGuideBookPly": 0,
+    "maxMainBookPly": 0,
+    "bookFilter": 20
+  },
+  "time": {
+    "timePercentage": 100,
+    "timeNervousness": 45,
+    "blitzHustle": 35,
+    "minThinkTimePercent": 70
+  },
+  "taunts": {
+    "enabled": true,
+    "tauntFile": "taunts.txt",
+    "intensity": 20,
+    "rudeness": 10,
+    "whenLosing": 20,
+    "userBlunderDelta": 200,
+    "engineBlunderDelta": 200,
+    "smallGainMin": 30,
+    "smallGainMax": 60,
+    "balanceWindow": 15,
+    "advantageThreshold": 50,
+    "winningThreshold": 100,
+    "crushingThreshold": 300
+  }
+}

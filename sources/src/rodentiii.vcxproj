@@ -43,7 +43,7 @@
     <ProjectGuid>{60AFA73F-CEB0-4F63-96B5-69AD146DE451}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>rodentiii</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>rodent-iv</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -245,6 +245,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\character.cpp" />
     <ClCompile Include="src\attacks.cpp" />
     <ClCompile Include="src\bitboard.cpp" />
     <ClCompile Include="src\book.cpp" />
@@ -277,6 +278,7 @@
     <ClCompile Include="src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\character.h" />
     <ClInclude Include="src\book.h" />
     <ClInclude Include="src\chessheapclass.h" />
     <ClInclude Include="src\eval.h" />

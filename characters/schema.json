@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rodent-iv.local/schemas/character-profile.json",
+  "title": "CharacterProfile",
+  "description": "Canonical on-disk JSON representation for a Rodent IV character profile, matching the engine's DumpCharacterJson output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "description", "strength", "books", "time", "taunts"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for the character, typically matching the JSON file name (without extension)."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the character."
+    },
+    "strength": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetElo", "useWeakening", "searchSkill", "selectivity", "slowMover"],
+      "properties": {
+        "targetElo": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 3200,
+          "description": "Target Elo level exposed as UCI_Elo."
+        },
+        "useWeakening": {
+          "type": "boolean",
+          "description": "Whether to use Elo-based weakening (UCI_LimitStrength)."
+        },
+        "searchSkill": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Search skill parameter (0..10)."
+        },
+        "selectivity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "Search selectivity percentage, mapped to Par.hist_perc."
+        },
+        "slowMover": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 500,
+          "description": "SlowMover percentage mapped to Par.timePercentage."
+        }
+      }
+    },
+    "books": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guideBookFile", "mainBookFile", "maxGuideBookPly", "maxMainBookPly", "bookFilter"],
+      "properties": {
+        "guideBookFile": {
+          "type": "string",
+          "description": "Filename of guide book, relative to Rodent books directory."
+        },
+        "mainBookFile": {
+          "type": "string",
+          "description": "Filename of main book, relative to Rodent books directory."
+        },
+        "maxGuideBookPly": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 200,
+          "description": "Maximum guide book ply depth (-1 for unlimited)."
+        },
+        "maxMainBookPly": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 200,
+          "description": "Maximum main book ply depth (-1 for unlimited)."
+        },
+        "bookFilter": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Book filtering percentage mapped to Par.bookFilter."
+        }
+      }
+    },
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timePercentage", "timeNervousness", "blitzHustle", "minThinkTimePercent"],
+      "properties": {
+        "timePercentage": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 500,
+          "description": "SlowMover-style time percentage override."
+        },
+        "timeNervousness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Relative nervousness in low time (0..100)."
+        },
+        "blitzHustle": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Aggressiveness based on opponent clock (0..100)."
+        },
+        "minThinkTimePercent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Percentage of per-move budget enforced as minimum visible think time."
+        }
+      }
+    },
+    "taunts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "tauntFile",
+        "intensity",
+        "rudeness",
+        "whenLosing",
+        "userBlunderDelta",
+        "engineBlunderDelta",
+        "smallGainMin",
+        "smallGainMax",
+        "balanceWindow",
+        "advantageThreshold",
+        "winningThreshold",
+        "crushingThreshold"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether taunting is enabled."
+        },
+        "tauntFile": {
+          "type": "string",
+          "description": "Taunt file path (relative to engine working directory)."
+        },
+        "intensity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Overall taunt intensity (0..100)."
+        },
+        "rudeness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Taunt rudeness level (0..100)."
+        },
+        "whenLosing": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "How likely to taunt when losing (0..100)."
+        },
+        "userBlunderDelta": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Centipawn drop threshold to treat a user blunder as taunt-worthy."
+        },
+        "engineBlunderDelta": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Centipawn drop threshold to treat an engine blunder as taunt-worthy."
+        },
+        "smallGainMin": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Lower bound in centipawns for small gain window."
+        },
+        "smallGainMax": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Upper bound in centipawns for small gain window."
+        },
+        "balanceWindow": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Window around 0 eval considered roughly balanced."
+        },
+        "advantageThreshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Eval threshold for 'advantage' messages."
+        },
+        "winningThreshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Eval threshold for 'winning' messages."
+        },
+        "crushingThreshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000,
+          "description": "Eval threshold for 'crushing' messages."
+        }
+      }
+    }
+  }
+}
+
+

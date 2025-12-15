@@ -1,0 +1,39 @@
+{
+  "id": "cloe",
+  "description": "Imported from cloe.txt",
+  "strength": {
+    "targetElo": 2800,
+    "useWeakening": true,
+    "searchSkill": 10,
+    "selectivity": 175,
+    "slowMover": 100
+  },
+  "books": {
+    "guideBookFile": "guide/closed.bin",
+    "mainBookFile": "main/rodent.bin",
+    "maxGuideBookPly": 256,
+    "maxMainBookPly": 256,
+    "bookFilter": 20
+  },
+  "time": {
+    "timePercentage": 100,
+    "timeNervousness": 50,
+    "blitzHustle": 50,
+    "minThinkTimePercent": 100
+  },
+  "taunts": {
+    "enabled": false,
+    "tauntFile": "taunts.txt",
+    "intensity": 100,
+    "rudeness": 50,
+    "whenLosing": 50,
+    "userBlunderDelta": 200,
+    "engineBlunderDelta": 200,
+    "smallGainMin": 30,
+    "smallGainMax": 60,
+    "balanceWindow": 15,
+    "advantageThreshold": 50,
+    "winningThreshold": 100,
+    "crushingThreshold": 300
+  }
+}

@@ -14,6 +14,8 @@ setoption name TauntWhenLosing value 40
 setoption name SlowMover value 105
 setoption name TimeNervousness value 40
 setoption name BlitzHustle value 40
+; Old Timer thinks roughly full budget before moving.
+setoption name MinThinkTimePercent value 100
 
 ; evaluation tweaks: more structural, less all-out attack
 setoption name OwnAttack value 110

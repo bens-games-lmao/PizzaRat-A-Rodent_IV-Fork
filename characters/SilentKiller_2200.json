@@ -1,0 +1,39 @@
+{
+  "id": "SilentKiller_2200",
+  "description": "Imported from silent_killer.txt",
+  "strength": {
+    "targetElo": 2200,
+    "useWeakening": true,
+    "searchSkill": 10,
+    "selectivity": 175,
+    "slowMover": 120
+  },
+  "books": {
+    "guideBookFile": "guide.bin",
+    "mainBookFile": "rodent.bin",
+    "maxGuideBookPly": 56,
+    "maxMainBookPly": 56,
+    "bookFilter": 20
+  },
+  "time": {
+    "timePercentage": 120,
+    "timeNervousness": 50,
+    "blitzHustle": 50,
+    "minThinkTimePercent": 130
+  },
+  "taunts": {
+    "enabled": true,
+    "tauntFile": "taunts.txt",
+    "intensity": 10,
+    "rudeness": 10,
+    "whenLosing": 10,
+    "userBlunderDelta": 200,
+    "engineBlunderDelta": 200,
+    "smallGainMin": 30,
+    "smallGainMax": 60,
+    "balanceWindow": 15,
+    "advantageThreshold": 50,
+    "winningThreshold": 100,
+    "crushingThreshold": 300
+  }
+}

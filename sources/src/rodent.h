@@ -589,6 +589,8 @@ const char* const paramNames[N_OF_VAL] = {
 
 #define V(x) (Par.values[x]) // a little shorthand to unclutter eval code
 
+#include "character.h"
+
 class cParam {
   public:
 	int wait[N_OF_VAL];
@@ -903,6 +905,7 @@ class cEngine {
   public:
 
     static int msMoveTime;
+    static int msRoleplayMinTime;
     static int msMoveNodes;
     static int msSearchDepth;
     static int msStartTime;

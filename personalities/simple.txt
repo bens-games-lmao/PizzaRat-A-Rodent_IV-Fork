@@ -70,6 +70,8 @@ setoption name NpsLimit value 0
 setoption name EvalBlur value 0
 setoption name Contempt value -5
 setoption name SlowMover value 100
+; Simple should move a bit faster than its full budget on average.
+setoption name MinThinkTimePercent value 70
 setoption name Selectivity value 175
 setoption name SearchSkill value 10
 setoption name BookFilter value 20

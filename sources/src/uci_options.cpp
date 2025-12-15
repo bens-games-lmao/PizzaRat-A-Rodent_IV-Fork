@@ -149,6 +149,7 @@ void PrintUciOptions() {
     printf("option name UseBook type check default %s\n", Par.useBook ? "true" : "false");
     printf("option name VerboseBook type check default %s\n", Par.verboseBook ? "true" : "false");
     printf("option name MobilityRebalancing type check default %s\n", Par.useMobilityRebalancing ? "true" : "false");
+    printf("option name MinThinkTimePercent type spin default %d min 0 max 200\n", ActiveCharacter.timeUsage.minThinkTimePercent);
 
     if (!Glob.useBooksFromPers || !Glob.usePersonalityFiles) {
         printf("option name GuideBookFile type string default %s\n", GuideBook.bookName);
@@ -184,55 +185,86 @@ static char *pseudotrimstring(char *in_str) {
     return in_str;
 }
 
-static bool HandlePizzaratOption(const char *name, char *value) {
+static bool HandlePizzaratOption(const char *name, char *value, bool &profileTouched) {
 
     if (strcmp(name, "taunting") == 0) {
         valuebool(Glob.useTaunting, value);
+        ActiveCharacter.taunts.tauntingEnabled = Glob.useTaunting;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntfile") == 0) {
         Glob.tauntFile = value;
+        ActiveCharacter.taunts.tauntFile = Glob.tauntFile;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntintensity") == 0) {
         Glob.tauntIntensity = atoi(value);
+        ActiveCharacter.taunts.tauntIntensity = Glob.tauntIntensity;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntrudeness") == 0) {
         Glob.tauntRudeness = atoi(value);
+        ActiveCharacter.taunts.tauntRudeness = Glob.tauntRudeness;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntwhenlosing") == 0) {
         Glob.tauntWhenLosing = atoi(value);
+        ActiveCharacter.taunts.tauntWhenLosing = Glob.tauntWhenLosing;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "timenervousness") == 0) {
         Glob.timeNervousness = atoi(value);
+        ActiveCharacter.timeUsage.timeNervousness = Glob.timeNervousness;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "blitzhustle") == 0) {
         Glob.blitzHustle = atoi(value);
+        ActiveCharacter.timeUsage.blitzHustle = Glob.blitzHustle;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntuserblunderdelta") == 0) {
         Glob.tauntUserBlunderDelta = atoi(value);
+        ActiveCharacter.taunts.tauntUserBlunderDelta = Glob.tauntUserBlunderDelta;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntengineblunderdelta") == 0) {
         Glob.tauntEngineBlunderDelta = atoi(value);
+        ActiveCharacter.taunts.tauntEngineBlunderDelta = Glob.tauntEngineBlunderDelta;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntsmallgainmin") == 0) {
         Glob.tauntSmallGainMin = atoi(value);
+        ActiveCharacter.taunts.tauntSmallGainMin = Glob.tauntSmallGainMin;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntsmallgainmax") == 0) {
         Glob.tauntSmallGainMax = atoi(value);
+        ActiveCharacter.taunts.tauntSmallGainMax = Glob.tauntSmallGainMax;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntbalancewindow") == 0) {
         Glob.tauntBalanceWindow = atoi(value);
+        ActiveCharacter.taunts.tauntBalanceWindow = Glob.tauntBalanceWindow;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntadvantagethreshold") == 0) {
         Glob.tauntAdvantageThreshold = atoi(value);
+        ActiveCharacter.taunts.tauntAdvantageThreshold = Glob.tauntAdvantageThreshold;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntwinningthreshold") == 0) {
         Glob.tauntWinningThreshold = atoi(value);
+        ActiveCharacter.taunts.tauntWinningThreshold = Glob.tauntWinningThreshold;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "tauntcrushingthreshold") == 0) {
         Glob.tauntCrushingThreshold = atoi(value);
+        ActiveCharacter.taunts.tauntCrushingThreshold = Glob.tauntCrushingThreshold;
+        profileTouched = true;
         return true;
     } else if (strcmp(name, "hustletimethresholdms") == 0) {
         Glob.hustleTimeThresholdMs = atoi(value);
+        // Threshold is not currently part of CharacterProfile; leave as a pure engine knob.
         return true;
     }
 
@@ -260,6 +292,8 @@ void ParseSetoption(const char *ptr) {
         name[i] = tolower(name[i]); // we can't lowercase `value` 'coz paths are case-sensitive on linux
 
     printf_debug("setoption name: '%s' value: '%s'\n", name, value );
+
+    bool profileTouched = false;
 
     if (strcmp(name, "hash") == 0)                                           {
         Trans.AllocTrans(atoi(value));
@@ -406,8 +440,12 @@ void ParseSetoption(const char *ptr) {
 
     } else if (strcmp(name, "guidebookfile") == 0)                           {
         if (Glob.CanReadBook() ) GuideBook.SetBookName(value);
+        ActiveCharacter.books.guideBookFile = value;
+        profileTouched = true;
     } else if (strcmp(name, "mainbookfile") == 0)                            {
         if (Glob.CanReadBook() ) MainBook.SetBookName(value);
+        ActiveCharacter.books.mainBookFile = value;
+        profileTouched = true;
     } else if (strcmp(name, "contempt") == 0)                                {
         Par.drawScore = atoi(value);
         Glob.shouldClear = true;
@@ -418,15 +456,19 @@ void ParseSetoption(const char *ptr) {
         Par.npsLimit = atoi(value);
     } else if (strcmp(name, "uci_elo") == 0)                                 {
         Par.elo = atoi(value);
+        ActiveCharacter.strength.targetElo = Par.elo;
+        profileTouched = true;
         Par.SetSpeed(Par.elo);
     } else if (strcmp(name, "printpv") == 0)                                 {
         valuebool(Glob.printPv, value);
-    } else if (HandlePizzaratOption(name, value))                            {
+    } else if (HandlePizzaratOption(name, value, profileTouched))            {
         // handled by PIZZARAT extensions
     } else if (strcmp(name, "verbose") == 0)                                 {
         valuebool(Glob.isNoisy, value);
     } else if (strcmp(name, "uci_limitstrength") == 0)                       {
         valuebool(Par.useWeakening, value);
+        ActiveCharacter.strength.useWeakening = Par.useWeakening;
+        profileTouched = true;
     } else if (strcmp(name, "ponder") == 0)                                  {
         valuebool(Par.use_ponder, value);
     } else if (strcmp(name, "usebook") == 0)                                 {
@@ -437,9 +479,20 @@ void ParseSetoption(const char *ptr) {
     valuebool(Par.useMobilityRebalancing, value);
     } else if (strcmp(name, "searchskill") == 0)                             {
         Par.searchSkill = atoi(value);
+        ActiveCharacter.strength.searchSkill = Par.searchSkill;
+        profileTouched = true;
         Glob.shouldClear = true;
     } else if (strcmp(name, "slowmover") == 0)                               {
         Par.timePercentage = atoi(value);
+        ActiveCharacter.strength.slowMover = Par.timePercentage;
+        ActiveCharacter.timeUsage.timePercentage = Par.timePercentage;
+        profileTouched = true;
+    } else if (strcmp(name, "minthinktimepercent") == 0)                     {
+        int v = atoi(value);
+        if (v < 0) v = 0;
+        if (v > 200) v = 200;
+        ActiveCharacter.timeUsage.minThinkTimePercent = v;
+        profileTouched = true;
     } else if (strcmp(name, "selectivity") == 0)                             {
         Par.hist_perc = atoi(value);
         Par.histLimit = -MAX_HIST + ((MAX_HIST * Par.hist_perc) / 100);
@@ -458,6 +511,13 @@ void ParseSetoption(const char *ptr) {
                 ReadPersonality(char_aliases.path[i]);
                 break;
             }
+    }
+
+    // For options that touched the high-level character sheet and did not
+    // originate from a personality file, re-apply the profile so that Par
+    // and Glob stay in sync with ActiveCharacter.
+    if (profileTouched && !Glob.isReadingPersonality) {
+        ApplyCharacterProfile(ActiveCharacter, Par, Glob, GuideBook, MainBook);
     }
 }
 
@@ -603,4 +663,11 @@ void ReadPersonality(const char *fileName) {
     fclose(personalityFile);
     Par.SpeedToBookDepth(Par.npsLimit);
     Glob.isReadingPersonality = false;
+
+    // After loading a personality, mirror the effective configuration into
+    // the high-level ActiveCharacter and re-apply it through the character
+    // layer. For now this is effectively an identity transform, but it makes
+    // book depth and related policies explicit and centralised.
+    SnapshotFromEngineToCharacterProfile(ActiveCharacter, Par, Glob, GuideBook, MainBook);
+    ApplyCharacterProfile(ActiveCharacter, Par, Glob, GuideBook, MainBook);
 }

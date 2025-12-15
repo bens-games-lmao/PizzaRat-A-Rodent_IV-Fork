@@ -1,0 +1,39 @@
+{
+  "id": "Tal_2100",
+  "description": "Imported from tal.txt",
+  "strength": {
+    "targetElo": 2100,
+    "useWeakening": true,
+    "searchSkill": 10,
+    "selectivity": 175,
+    "slowMover": 100
+  },
+  "books": {
+    "guideBookFile": "players/ph-tal2.bin",
+    "mainBookFile": "rodent.bin",
+    "maxGuideBookPly": 27,
+    "maxMainBookPly": 27,
+    "bookFilter": 20
+  },
+  "time": {
+    "timePercentage": 100,
+    "timeNervousness": 70,
+    "blitzHustle": 60,
+    "minThinkTimePercent": 100
+  },
+  "taunts": {
+    "enabled": true,
+    "tauntFile": "taunts.txt",
+    "intensity": 70,
+    "rudeness": 80,
+    "whenLosing": 40,
+    "userBlunderDelta": 200,
+    "engineBlunderDelta": 200,
+    "smallGainMin": 30,
+    "smallGainMax": 60,
+    "balanceWindow": 15,
+    "advantageThreshold": 50,
+    "winningThreshold": 100,
+    "crushingThreshold": 300
+  }
+}

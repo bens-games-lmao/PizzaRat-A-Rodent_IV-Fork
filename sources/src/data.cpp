@@ -27,6 +27,7 @@ U64 POS::msZobCastle[16];
 U64 POS::msZobEp[8];
 int tDepth[MAX_THREADS];
 int cEngine::msMoveTime;
+int cEngine::msRoleplayMinTime;
 int cEngine::msMoveNodes;
 int cEngine::msSearchDepth;
 int cEngine::msStartTime;

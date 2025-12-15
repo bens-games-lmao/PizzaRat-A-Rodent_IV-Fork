@@ -14,6 +14,8 @@ setoption name TauntWhenLosing value 10
 setoption name SlowMover value 120
 setoption name TimeNervousness value 50
 setoption name BlitzHustle value 50
+; Silent Killer tends to tank a bit longer than the nominal budget.
+setoption name MinThinkTimePercent value 130
 
 ; evaluation tweaks: stronger attack/technique
 setoption name OwnAttack value 150

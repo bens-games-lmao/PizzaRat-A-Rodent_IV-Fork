@@ -1,0 +1,39 @@
+{
+  "id": "Grumpy_1700",
+  "description": "Imported from grumpy.txt",
+  "strength": {
+    "targetElo": 1700,
+    "useWeakening": true,
+    "searchSkill": 10,
+    "selectivity": 175,
+    "slowMover": 120
+  },
+  "books": {
+    "guideBookFile": "guide/grandpa.bin",
+    "mainBookFile": "rodent.bin",
+    "maxGuideBookPly": 1,
+    "maxMainBookPly": 1,
+    "bookFilter": 20
+  },
+  "time": {
+    "timePercentage": 120,
+    "timeNervousness": 55,
+    "blitzHustle": 55,
+    "minThinkTimePercent": 100
+  },
+  "taunts": {
+    "enabled": true,
+    "tauntFile": "taunts.txt",
+    "intensity": 50,
+    "rudeness": 60,
+    "whenLosing": 60,
+    "userBlunderDelta": 200,
+    "engineBlunderDelta": 200,
+    "smallGainMin": 30,
+    "smallGainMax": 60,
+    "balanceWindow": 15,
+    "advantageThreshold": 50,
+    "winningThreshold": 100,
+    "crushingThreshold": 300
+  }
+}
