@@ -1,0 +1,17 @@
+[Event "Play vs Bot"]
+[Site "Chess.com"]
+[Date "2025.12.12"]
+[Round "?"]
+[White "Abominable Chessman"]
+[Black "pyramidiots"]
+[Result "1-0"]
+[BlackElo "1825"]
+[WhiteElo "400"]
+[Termination "by checkmate"]
+[ECO "A40"]
+[EndDate "2025.12.12"]
+[Link "https://www.chess.com/game/computer/490856563"]
+
+1. d4 e6 2. d5 Nf6 3. dxe6 fxe6 4. Nf3 Nc6 5. c4 Bb4+ 6. Bd2 O-O 7. a3 Be7 8. e3
+Ng4 9. Bc3 Bh4 10. Nxh4 Nxf2 11. Qh5 Nxh1 12. Bd3 g6 13. Nxg6 h6 14. Qxh6 Rf6
+15. Qh8+ Kf7 16. Qh7+ Ke8 17. Qg8+ Rf8 18. Qxf8# 1-0

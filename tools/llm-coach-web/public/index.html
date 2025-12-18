@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Chess Coach Chatbot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <section class="input-section">
+          <div class="pgn-upload">
+            <input type="file" id="pgnFile" accept=".pgn,text/plain" />
+
+            <div class="personality-row">
+              <label for="personalitySelect">Coach personality</label>
+              <select id="personalitySelect">
+                <option value="">Default coach (no character selected)</option>
+              </select>
+            </div>
+
+            <div class="personality-row">
+              <label for="reasoningSelect">Reasoning effort</label>
+              <select id="reasoningSelect">
+                <option value="none">None</option>
+                <option value="low">Low</option>
+                <option value="mid" selected>Mid</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pgn-preview">
+            <div id="pgnBoardContainer" class="pgn-board-container">
+              <div id="pgnBoard" class="chess-board"></div>
+              <div id="pgnBoardCaption" class="board-caption">
+                No PGN loaded yet.
+              </div>
+              <div class="pgn-board-controls">
+                <button id="pgnFirstBtn" title="First position">&lt;&lt;</button>
+                <button id="pgnPrevBtn" title="Previous move">&lt;</button>
+                <span id="pgnMoveInfo" class="pgn-move-info">Move 0 / 0</span>
+                <button id="pgnNextBtn" title="Next move">&gt;</button>
+                <button id="pgnLastBtn" title="Last position">&gt;&gt;</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pgn-preview">
+            <textarea
+              id="pgnPreview"
+              readonly
+              placeholder="No PGN loaded yet..."
+            ></textarea>
+          </div>
+        </section>
+      </header>
+
+      <div class="main-layout">
+        <section class="chat-section">
+          <div id="chatLog" class="chat-log"></div>
+          <div class="chat-input">
+            <textarea
+              id="messageInput"
+              rows="2"
+              placeholder="Ask the coach about the position (or leave blank for a general explanation)..."
+            ></textarea>
+            <button id="sendBtn">Ask coach</button>
+          </div>
+          <div id="status" class="status"></div>
+          <section class="reasoning-section">
+            <label for="reasoningLog">Reasoning (dev-only, not shown to players)</label>
+            <div id="reasoningLog" class="reasoning-log"></div>
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      if (window.marked) {
+        window.marked.setOptions({ breaks: true });
+      }
+    </script>
+    <script src="app.js"></script>
+  </body>
+</html>
