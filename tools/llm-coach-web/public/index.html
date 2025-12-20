@@ -9,7 +9,7 @@
   <body>
     <div class="page">
       <header class="header">
-        <section class="input-section">
+        <section class="input-section" id="setupPanel">
           <div class="pgn-upload">
             <input type="file" id="pgnFile" accept=".pgn,text/plain" />
 
@@ -27,6 +27,70 @@
                 <option value="low">Low</option>
                 <option value="mid" selected>Mid</option>
                 <option value="high">High</option>
+              </select>
+            </div>
+
+            <div class="personality-row llm-source-row">
+              <label for="llmSourceSelect">LLM source</label>
+              <select id="llmSourceSelect">
+                <option value="local" selected>Local (localhost)</option>
+                <option value="lan">LAN (custom IP/port)</option>
+                <option value="remote">Remote (OpenRouter)</option>
+              </select>
+            </div>
+
+            <div class="personality-row" id="remoteFallbackRow">
+              <label>
+                <input type="checkbox" id="remoteFallbackToggle" />
+                Fallback to OpenRouter?
+              </label>
+            </div>
+
+            <div
+              class="personality-row llm-lan-row llm-lan-row--hidden"
+              id="llmLanRow"
+            >
+              <label>LAN host &amp; port</label>
+              <div class="llm-lan-fields">
+                <input
+                  type="text"
+                  id="llmLanHost"
+                  placeholder="192.168.0.10 or http://host:port/v1"
+                />
+                <input
+                  type="number"
+                  id="llmLanPort"
+                  placeholder="1234"
+                  min="1"
+                />
+              </div>
+              <span class="hint">Used only when LLM source is set to LAN.</span>
+            </div>
+
+            <div class="personality-row">
+              <label for="useTauntMode">
+                <input type="checkbox" id="useTauntMode" checked />
+                LLM Taunt
+              </label>
+            </div>
+
+            <div class="personality-row">
+              <select id="playerColorSelect">
+                <option value="white" selected>
+                  Player: White, LLM: Black
+                </option>
+                <option value="black">Player: Black, LLM: White</option>
+              </select>
+            </div>
+
+            <div class="personality-row">
+              <select id="commentTargetSelect">
+                <option value="player" selected>
+                  Comment on player's most recent move
+                </option>
+                <option value="llm">
+                  Comment on LLM's own most recent move
+                </option>
               </select>
             </div>
           </div>
@@ -55,6 +119,18 @@
             ></textarea>
           </div>
         </section>
+
+        <div class="header-controls">
+          <button
+            id="inputSectionToggleBtn"
+            type="button"
+            class="header-toggle"
+            aria-expanded="true"
+            aria-controls="setupPanel"
+          >
+            Hide setup
+          </button>
+        </div>
       </header>
 
       <div class="main-layout">
@@ -72,6 +148,10 @@
           <section class="reasoning-section">
             <label for="reasoningLog">Reasoning (dev-only, not shown to players)</label>
             <div id="reasoningLog" class="reasoning-log"></div>
+          </section>
+          <section class="reasoning-section">
+            <label for="engineLog">Engine / prompt debug (dev-only)</label>
+            <div id="engineLog" class="reasoning-log"></div>
           </section>
         </section>
       </div>

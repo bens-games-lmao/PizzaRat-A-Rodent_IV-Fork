@@ -224,6 +224,46 @@ static bool PassRudenessFilter(const TauntEntry &e) {
     return true;
 }
 
+static const char *EventNameFromCategory(TauntCategory cat) {
+    switch (cat) {
+    case TAUNT_CAT_CAPTURE:        return "Capture";
+    case TAUNT_CAT_USER_BLUNDER:   return "UserBlunder";
+    case TAUNT_CAT_ENGINE_BLUNDER: return "EngineBlunder";
+    case TAUNT_CAT_LOSING:         return "Losing";
+    case TAUNT_CAT_WINNING:        return "Winning";
+    case TAUNT_CAT_CRUSHING:       return "Crushing";
+    case TAUNT_CAT_ADVANTAGE:      return "Advantage";
+    case TAUNT_CAT_BALANCE:        return "Balance";
+    case TAUNT_CAT_DISADVANTAGE:   return "Disadvantage";
+    case TAUNT_CAT_ESCAPE:         return "Escape";
+    case TAUNT_CAT_GAINING:        return "Gaining";
+    case TAUNT_CAT_GENERAL:
+    default:
+        return "General";
+    }
+}
+
+static const char *SeverityFromCategory(TauntCategory cat) {
+    switch (cat) {
+    case TAUNT_CAT_WINNING:
+    case TAUNT_CAT_CRUSHING:
+    case TAUNT_CAT_LOSING:
+    case TAUNT_CAT_DISADVANTAGE:
+        return "severe";
+    case TAUNT_CAT_CAPTURE:
+    case TAUNT_CAT_USER_BLUNDER:
+    case TAUNT_CAT_ENGINE_BLUNDER:
+    case TAUNT_CAT_ADVANTAGE:
+    case TAUNT_CAT_ESCAPE:
+    case TAUNT_CAT_GAINING:
+        return "medium";
+    case TAUNT_CAT_GENERAL:
+    case TAUNT_CAT_BALANCE:
+    default:
+        return "mild";
+    }
+}
+
 static void PrintRandomTaunt(TauntCategory cat) {
 
     std::vector<TauntEntry> &v = s_taunts[cat];
@@ -251,7 +291,16 @@ static void PrintRandomTaunt(TauntCategory cat) {
         chosen = &v[idx];
     }
 
+    // Existing human-readable taunt for classic UCI clients.
     std::cout << "info string " << chosen->text << std::endl;
+
+    // Additional machine-friendly descriptor line for LLM taunt integration.
+    // Format: info string taunt_llm|EventName|severity|text...
+    const char *eventName = EventNameFromCategory(cat);
+    const char *severity = SeverityFromCategory(cat);
+    std::cout << "info string taunt_llm|" << eventName
+              << "|" << severity
+              << "|" << chosen->text << std::endl;
 }
 
 // Try to handle blunders or small evaluation swings with dedicated taunts.

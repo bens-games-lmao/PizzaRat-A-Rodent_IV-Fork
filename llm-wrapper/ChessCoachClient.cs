@@ -12,12 +12,9 @@ namespace GameAI.ChessCoach
         public static string BuildDefaultSystemPrompt()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("You are a strong chess coach (~2200 Elo) commentating a live game.");
-            sb.AppendLine("You NEVER invent engine evaluations or moves.");
-            sb.AppendLine("You only explain and discuss what is contained in the ENGINE_STATE block.");
-            sb.AppendLine("Use algebraic notation and keep responses concise and concrete.");
-            sb.AppendLine("Focus on plans, key squares, and tactical ideas, not only moves.");
-            sb.AppendLine();
+            sb.AppendLine("You are a narration layer over a chess engine, not a chess engine yourself.");
+
+
             return sb.ToString();
         }
 
@@ -37,8 +34,9 @@ namespace GameAI.ChessCoach
             }
             else
             {
-                sb.AppendLine("Explain the evaluation, the main plan for the side to move,");
-                sb.AppendLine("and briefly compare the top engine moves mentioned in ENGINE_STATE.");
+                sb.AppendLine("Explain, in plain language, what the ENGINE_STATE block says.");
+                sb.AppendLine("Describe the evaluation, game status, and the engine's top lines, and summarize the typical plans they suggest.");
+                sb.AppendLine("Do not invent any new moves, evaluations, or piece locations beyond what ENGINE_STATE already contains.");
             }
 
             return sb.ToString();
@@ -70,7 +68,7 @@ namespace GameAI.ChessCoach
                 {
                     var line = state.TopLines[i];
                     sb.AppendLine(
-                        $"{i + 1}) Move: {line.Move}, Eval: {line.CentipawnEval / 100.0:+0.00;-0.00;0.00}, Line: {line.Line}"
+                        $"{i + 1}) Move: {line.Move}, Eval: {line.CentipawnEval / 100.0:+0.00;-0.00;0.00}, Line: {line.Line}" 
                         + (line.Depth.HasValue ? $" (depth {line.Depth})" : string.Empty)
                     );
                 }
@@ -88,13 +86,13 @@ namespace GameAI.ChessCoach
 
         /// <summary>
         /// Raised once per reply when the first streaming delta arrives.
-        /// UI should show the \"...typing\" indicator.
+        /// UI should show the "...typing" indicator.
         /// </summary>
         public event Action TypingStarted;
 
         /// <summary>
         /// Raised when streaming for this reply fully ends (success or failure).
-        /// UI should hide the \"...typing\" indicator.
+        /// UI should hide the "...typing" indicator.
         /// </summary>
         public event Action TypingEnded;
 
@@ -190,7 +188,7 @@ namespace GameAI.ChessCoach
             {
                 if (!cancellationToken.IsCancellationRequested)
                 {
-                    sentenceBuffer.Replace(\"\\n\", \" \").Replace(\"\\r\", \" \");
+                    sentenceBuffer.Replace("\n", " ").Replace("\r", " ");
                     if (sentenceBuffer.Length > 0)
                     {
                         SentenceReady?.Invoke(sentenceBuffer.ToString().Trim());
@@ -224,5 +222,3 @@ namespace GameAI.ChessCoach
         }
     }
 }
-
-

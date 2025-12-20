@@ -1,0 +1,16 @@
+[
+  {
+    "id": "lofi-beats",
+    "name": "Lo‑Fi Study Beats",
+    "url": "https://stream.lofiradio.example.com/stream",
+    "description": "Mellow instrumental beats, suitable for background listening while playing."
+  },
+  {
+    "id": "coffee-shop",
+    "name": "Coffee Shop Ambience",
+    "url": "https://stream.coffeeshop.example.com/stream",
+    "description": "Soft chatter, clinking cups and gentle music – a relaxed café vibe."
+  }
+]
+
+

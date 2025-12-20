@@ -56,11 +56,26 @@ body {
   font-size: 0.95rem;
 }
 
+.header-controls {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+}
+
 .input-section {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.5fr);
   gap: 12px;
   align-items: stretch;
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.header--collapsed .input-section {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .pgn-upload,
@@ -71,10 +86,17 @@ body {
 }
 
 .pgn-board-container {
+  position: relative;
   margin-bottom: 8px;
   max-width: 260px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.pgn-last-move-arrow {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .pgn-board-controls {
@@ -203,6 +225,38 @@ input[type="file"] {
   margin-top: 12px;
 }
 
+.llm-source-row {
+  margin-top: 12px;
+}
+
+.llm-lan-row {
+  margin-top: 8px;
+}
+
+.llm-lan-row--hidden {
+  display: none;
+}
+
+.llm-lan-fields {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.llm-lan-fields input {
+  flex: 1;
+  border-radius: 6px;
+  border: 1px solid #293152;
+  background: #0f1528;
+  color: #f5f7ff;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.llm-lan-fields input::placeholder {
+  color: #7780a5;
+}
+
 select {
   width: 100%;
   border-radius: 6px;
@@ -237,6 +291,11 @@ textarea:focus {
   outline: none;
   border-color: #4f9dff;
   box-shadow: 0 0 0 1px rgba(79, 157, 255, 0.4);
+}
+
+/* PGN plaintext box: make it taller for comfortable reading. */
+#pgnPreview {
+  min-height: 380px;
 }
 
 .chat-section {
@@ -334,6 +393,29 @@ button:hover:enabled {
 button:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.header-toggle {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 21, 40, 0.9);
+  color: #e0e3ff;
+  border: 1px solid #3b4a7a;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.header-toggle:hover:enabled {
+  background: rgba(21, 30, 60, 0.95);
+}
+
+.header-toggle::before {
+  content: "▾ ";
+  font-size: 0.8em;
+}
+
+.header--collapsed .header-toggle::before {
+  content: "▴ ";
 }
 
 .status {

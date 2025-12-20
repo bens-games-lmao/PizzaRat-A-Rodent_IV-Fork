@@ -6,18 +6,19 @@ const axios = require("axios");
 const { Chess } = require("chess.js");
 const fs = require("fs");
 const { analyzePosition } = require("./engineAnalysisService");
+const {
+  describeTauntForLlm,
+  buildTauntDescriptorFromEngine,
+} = require("./tauntDescriptor");
+const {
+  completeCoachReply,
+  completeTaunt,
+  streamCoachReply,
+  streamTaunt,
+} = require("./llmGateway");
 
 const app = express();
 const port = process.env.PORT || 4100;
-
-// LLM configuration. Adjust these via env vars if needed.
-// Example: LLM_BASE_URL=http://127.0.0.1:1234/v1 LLM_MODEL=smollm3-3b LLM_MAX_TOKENS=4096 npm start
-const llmBaseUrl = process.env.LLM_BASE_URL || "http://127.0.0.1:1234/v1";
-const llmModel = process.env.LLM_MODEL || "smollm3-3b";
-const llmMaxTokens =
-  process.env.LLM_MAX_TOKENS != null
-    ? Number(process.env.LLM_MAX_TOKENS)
-    : 4096;
 
 const fsp = fs.promises;
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -25,14 +26,35 @@ const CHARACTERS_DIR = path.join(ROOT, "characters");
 const THINK_START = "<think>";
 const THINK_END = "</think>";
 
-/**
- * Small helper to safely call a boolean-returning method on a chess.js
- * instance. If the method is missing or throws, this returns false.
- *
- * @param {import("chess.js").Chess} chess
- * @param {string} methodName
- * @returns {boolean}
- */
+// Optional prompt overrides loaded from plain text files so prompts can be
+// tuned without touching code. If these files are missing, we fall back to
+// the built-in prompt strings below.
+const PROMPTS_DIR = path.join(ROOT, "prompts");
+const promptCache = new Map();
+
+function loadPromptText(filename) {
+  if (promptCache.has(filename)) {
+    return promptCache.get(filename);
+  }
+  try {
+    const filePath = path.join(PROMPTS_DIR, filename);
+    const text = fs.readFileSync(filePath, "utf8");
+    promptCache.set(filename, text);
+    return text;
+  } catch {
+    promptCache.set(filename, null);
+    return null;
+  }
+}
+
+// Coach/chat prompts
+const systemPromptOverride = loadPromptText("coach-system.txt");
+const fallbackUserPromptOverride = loadPromptText("coach-fallback.txt");
+
+// Taunt prompts
+const tauntSystemPromptOverride = loadPromptText("taunt-system.txt");
+const tauntFallbackPromptOverride = loadPromptText("taunt-fallback.txt");
+
 function safeChessBool(chess, methodName) {
   const fn =
     chess && typeof chess[methodName] === "function" ? chess[methodName] : null;
@@ -44,19 +66,6 @@ function safeChessBool(chess, methodName) {
   }
 }
 
-/**
- * Build a human-readable summary of where each piece is located on the
- * board. This is intended as ground truth for the LLM, so it doesn't have
- * to (and must not) decode the FEN itself.
- *
- * Example output:
- *   Piece placements:
- *   White: King: e1; Queens: d1; Rooks: a1 h1; Bishops: c1 f1; Knights: b1 g1; Pawns: a2 b2 ...
- *   Black: King: e8; Queens: d8; Rooks: a8 h8; Bishops: c8 f8; Knights: b8 g8; Pawns: a7 b7 ...
- *
- * @param {import("chess.js").Chess} chess
- * @returns {string}
- */
 function buildPiecePlacementSummary(chess) {
   if (!chess || typeof chess.board !== "function") {
     return "";
@@ -81,7 +90,7 @@ function buildPiecePlacementSummary(chess) {
 
   for (let rankIndex = 0; rankIndex < 8; rankIndex += 1) {
     const row = board[rankIndex] || [];
-    const rank = 8 - rankIndex; // chess.js board()[0] is the 8th rank.
+    const rank = 8 - rankIndex;
     for (let fileIndex = 0; fileIndex < 8; fileIndex += 1) {
       const square = row[fileIndex];
       if (!square) continue;
@@ -123,19 +132,6 @@ function buildPiecePlacementSummary(chess) {
   return ["Piece placements:", whiteLine, blackLine].join("\n");
 }
 
-/**
- * Derive high-level game status (e.g., checkmate, stalemate, draw, ongoing),
- * the list of legal moves for the side to move, and a summary of piece
- * placements, based on a chess.js position.
- *
- * This information is fed into ENGINE_STATE so the LLM can:
- * - Recognize that the game is already over for checkmates/stalemates.
- * - Restrict suggested moves to those that are actually legal.
- * - Talk about where pieces are without having to decode FEN.
- *
- * @param {import("chess.js").Chess} chess
- * @returns {{ gameStatus: string, legalMovesSan: string[], piecePlacement: string }}
- */
 function summarizeGameState(chess) {
   if (!chess) {
     return {
@@ -187,30 +183,6 @@ function summarizeGameState(chess) {
   return { gameStatus, legalMovesSan, piecePlacement };
 }
 
-function splitSmolReasoning(text) {
-  if (!text || typeof text !== "string") {
-    return { reasoning: "", answer: text || "" };
-  }
-
-  const start = text.indexOf(THINK_START);
-  const end = text.indexOf(THINK_END);
-
-  if (start === -1 || end === -1 || end < start) {
-    return { reasoning: "", answer: text.trim() };
-  }
-
-  const reasoning = text
-    .slice(start + THINK_START.length, end)
-    .trim();
-
-  const answer = (
-    text.slice(0, start) +
-    text.slice(end + THINK_END.length)
-  ).trim();
-
-  return { reasoning, answer };
-}
-
 function normalizeReasoningEffort(raw) {
   if (!raw || typeof raw !== "string") return null;
   const value = raw.toLowerCase();
@@ -226,11 +198,8 @@ function parsePgnToChessOrThrow(pgnText) {
   const chess = new Chess();
 
   try {
-    // In chess.js v1.x, loadPgn throws on error and does not return a boolean.
-    // We rely on the absence of an exception to indicate success.
     chess.loadPgn(normalized, { strict: false });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn(
       "Chess.js threw while parsing PGN:",
       err && err.message ? err.message : err
@@ -243,19 +212,6 @@ function parsePgnToChessOrThrow(pgnText) {
   return chess;
 }
 
-/**
- * Build a sequence of positions (FENs) corresponding to each half-move in the
- * loaded PGN, starting from the initial position.
- *
- * The first entry (index 0) is the starting position before any moves.
- * Each subsequent entry (index n) is the position after n half-moves.
- *
- * This is used by the web UI to step through the game move-by-move without
- * needing chess.js in the browser.
- *
- * @param {import("chess.js").Chess} chess
- * @returns {Array<{ index: number, fen: string, ply: number, san: string | null, moveNumber: number, color: string }>}
- */
 function buildPgnPositions(chess) {
   if (!chess) return [];
 
@@ -279,7 +235,6 @@ function buildPgnPositions(chess) {
   try {
     replay = startFen ? new Chess(startFen) : new Chess();
   } catch (_) {
-    // Fallback: if the custom FEN is invalid, fall back to default start.
     replay = new Chess();
   }
 
@@ -294,7 +249,6 @@ function buildPgnPositions(chess) {
 
   const positions = [];
 
-  // Starting position before any moves.
   positions.push({
     index: 0,
     fen: replay.fen(),
@@ -302,6 +256,8 @@ function buildPgnPositions(chess) {
     san: null,
     moveNumber: 0,
     color: replay.turn && replay.turn() === "w" ? "White" : "Black",
+    // No last move for the initial position.
+    lastMove: null,
   });
 
   for (let i = 0; i < verboseMoves.length; i += 1) {
@@ -324,6 +280,18 @@ function buildPgnPositions(chess) {
 
     const moveNumber = Math.floor(i / 2) + 1;
 
+    const lastMove =
+      mv &&
+      typeof mv.from === "string" &&
+      typeof mv.to === "string" &&
+      mv.from.trim() &&
+      mv.to.trim()
+        ? {
+            from: mv.from.trim(),
+            to: mv.to.trim(),
+          }
+        : null;
+
     positions.push({
       index: i + 1,
       fen: replay.fen(),
@@ -331,6 +299,7 @@ function buildPgnPositions(chess) {
       san,
       moveNumber,
       color,
+      lastMove,
     });
   }
 
@@ -340,16 +309,13 @@ function buildPgnPositions(chess) {
 function normalizeId(rawId) {
   const id = String(rawId || "").trim();
   if (!id) return "";
-  // Keep it simple: only allow a-zA-Z0-9_- in file-based id.
   return id.replace(/[^A-Za-z0-9_\-]/g, "_");
 }
 
 async function ensureDir(dir) {
   try {
     await fsp.mkdir(dir, { recursive: true });
-  } catch (_) {
-    // ignore
-  }
+  } catch (_) {}
 }
 
 async function listCharacters() {
@@ -455,6 +421,10 @@ function buildPersonalityPrompt(profile) {
     `Your coaching tone should be ${tone}. Do not use profanity, slurs, or explicit content, and keep all comments focused on chess.`
   );
 
+  lines.push(
+    "You are not a chess engine and you must never calculate or choose moves yourself. You only rephrase and explain facts that are explicitly present in the ENGINE_STATE block."
+  );
+
   return lines.join("\n");
 }
 
@@ -463,8 +433,6 @@ app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 app.use(express.static(path.join(__dirname, "public")));
 
-// Lightweight helper endpoint: parse a PGN and return the final position.
-// This lets the front-end render a board preview without bundling chess.js.
 app.post("/api/pgn/final-position", (req, res) => {
   try {
     const { pgnText } = req.body || {};
@@ -494,7 +462,6 @@ app.post("/api/pgn/final-position", (req, res) => {
 
     res.json({ fen, sideToMove, moveHistory, positions });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("Error in /api/pgn/final-position:", err);
     res.status(500).json({
       error: "Failed to parse PGN.",
@@ -505,7 +472,17 @@ app.post("/api/pgn/final-position", (req, res) => {
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { pgnText, message, personalityId, reasoningEffort } = req.body || {};
+    const {
+      pgnText,
+      message,
+      personalityId,
+      playerColor,
+      commentTarget,
+      reasoningEffort,
+      llmSource,
+      lanHost,
+      lanPort,
+    } = req.body || {};
 
     if (!pgnText || typeof pgnText !== "string") {
       return res.status(400).json({ error: "pgnText (string) is required." });
@@ -521,26 +498,12 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const fen = chess.fen();
-    const sideToMove = chess.turn() === "w" ? "White" : "Black";
-    const history = chess.history();
-    const moveHistory = history.join(" ");
-
-    const { gameStatus, legalMovesSan, piecePlacement } = summarizeGameState(
-      chess
-    );
-
-    const engineState = await analyzePosition({
-      fen,
-      sideToMove,
-      moveHistory,
+    const engineStateBlock = await buildCoachEngineStateBlock({
+      chess,
       personalityId,
-      gameStatus,
-      legalMovesSan,
-      piecePlacement,
+      playerColor,
+      commentTarget,
     });
-
-    const engineStateBlock = buildEngineStateBlock(engineState);
 
     const userQuestion =
       typeof message === "string" && message.trim().length > 0
@@ -548,82 +511,24 @@ app.post("/api/chat", async (req, res) => {
         : "";
 
     const userContent = buildUserContent(engineStateBlock, userQuestion);
-    const systemPrompt = await buildSystemPrompt(personalityId, reasoningEffort);
+    const systemPrompt = await buildSystemPrompt(
+      personalityId,
+      reasoningEffort
+    );
 
-    const effort = normalizeReasoningEffort(reasoningEffort);
+    const result = await completeCoachReply({
+      systemPrompt,
+      userContent,
+      reasoningEffort,
+      llmSource,
+      lanHost,
+      lanPort,
+    });
 
-    // Responses API: flatten system + user into a single input string.
-    const fullPrompt = [systemPrompt, "", userContent].join("\n\n");
-
-    const payload = {
-      model: llmModel,
-      input: fullPrompt,
-      max_output_tokens: Number.isFinite(llmMaxTokens) ? llmMaxTokens : -1,
-      temperature: 0.6,
-      top_p: 0.95,
-    };
-
-    if (effort) {
-      payload.reasoning = { effort };
-    }
-
-    const url = `${llmBaseUrl.replace(/\/+$/, "")}/responses`;
-
-    const response = await axios.post(url, payload, { timeout: 60000 });
-    const data = response.data;
-
-    // Extract answer and reasoning from Responses-style payloads.
-    let answerText = "";
-    let reasoningText = "";
-
-    if (data) {
-      // Preferred: Responses API output array.
-      if (Array.isArray(data.output)) {
-        for (const out of data.output) {
-          if (!out || !Array.isArray(out.content)) continue;
-          for (const part of out.content) {
-            if (part && typeof part.text === "string") {
-              answerText += part.text;
-            } else if (part && typeof part.content === "string") {
-              answerText += part.content;
-            }
-          }
-        }
-      }
-
-      // Top-level reasoning container (OpenAI/LM Studio style).
-      if (data.reasoning) {
-        const r = data.reasoning;
-        if (typeof r.text === "string") {
-          reasoningText += r.text;
-        }
-        if (Array.isArray(r.content)) {
-          for (const part of r.content) {
-            if (part && typeof part.text === "string") {
-              reasoningText += part.text;
-            }
-          }
-        }
-      }
-
-      // Fallback: some servers may expose reasoning_content/content at top-level.
-      if (!reasoningText && typeof data.reasoning_content === "string") {
-        reasoningText = data.reasoning_content;
-      }
-      if (!answerText && typeof data.content === "string") {
-        answerText = data.content;
-      }
-    }
-
-    // Final fallback: if the server still embeds <think>...</think> inside
-    // the visible text, split it out.
-    if (!reasoningText) {
-      const split = splitSmolReasoning(answerText);
-      reasoningText = split.reasoning;
-      answerText = split.answer;
-    }
-
-    res.json({ reply: answerText, reasoning: reasoningText });
+    res.json({
+      reply: result.answerText,
+      reasoning: result.reasoningText,
+    });
   } catch (err) {
     console.error("Error in /api/chat:", err.response?.data || err.message);
     res.status(500).json({
@@ -633,14 +538,19 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Streaming variant: sentence-buffered reply, similar to the Unity integration.
-// Protocol: newline-delimited JSON objects with shape:
-// { "type": "typing", "state": "start" | "end" }
-// { "type": "sentence", "text": "..." }
-// { "type": "error", "message": "..." }
 app.post("/api/chat/stream", async (req, res) => {
   try {
-    const { pgnText, message, personalityId, reasoningEffort } = req.body || {};
+    const {
+      pgnText,
+      message,
+      personalityId,
+      playerColor,
+      commentTarget,
+      reasoningEffort,
+      llmSource,
+      lanHost,
+      lanPort,
+    } = req.body || {};
 
     if (!pgnText || typeof pgnText !== "string") {
       res.status(400).json({ error: "pgnText (string) is required." });
@@ -658,26 +568,12 @@ app.post("/api/chat/stream", async (req, res) => {
       return;
     }
 
-    const fen = chess.fen();
-    const sideToMove = chess.turn() === "w" ? "White" : "Black";
-    const history = chess.history();
-    const moveHistory = history.join(" ");
-
-    const { gameStatus, legalMovesSan, piecePlacement } = summarizeGameState(
-      chess
-    );
-
-    const engineState = await analyzePosition({
-      fen,
-      sideToMove,
-      moveHistory,
+    const engineStateBlock = await buildCoachEngineStateBlock({
+      chess,
       personalityId,
-      gameStatus,
-      legalMovesSan,
-      piecePlacement,
+      playerColor,
+      commentTarget,
     });
-
-    const engineStateBlock = buildEngineStateBlock(engineState);
 
     const userQuestion =
       typeof message === "string" && message.trim().length > 0
@@ -685,199 +581,63 @@ app.post("/api/chat/stream", async (req, res) => {
         : "";
 
     const userContent = buildUserContent(engineStateBlock, userQuestion);
-    const systemPrompt = await buildSystemPrompt(personalityId, reasoningEffort);
+    const systemPrompt = await buildSystemPrompt(
+      personalityId,
+      reasoningEffort
+    );
 
-    const effort = normalizeReasoningEffort(reasoningEffort);
-
-    const fullPrompt = [systemPrompt, "", userContent].join("\n\n");
-
-    const payload = {
-      model: llmModel,
-      input: fullPrompt,
-      max_output_tokens: Number.isFinite(llmMaxTokens) ? llmMaxTokens : -1,
-      temperature: 0.6,
-      top_p: 0.95,
-      stream: true,
-    };
-
-    if (effort) {
-      payload.reasoning = { effort };
-    }
-
-    const url = `${llmBaseUrl.replace(/\/+$/, "")}/responses`;
-
-    // Set up chunked response to the browser.
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");
-
-    const upstream = await axios.post(url, payload, {
-      responseType: "stream",
-      timeout: 0,
-    });
-
-    let sseBuffer = "";
-    let sentenceBuffer = "";
-    let fullAnswer = "";
-    let reasoningBuffer = "";
-    let firstDeltaSeen = false;
-    let reasoningStreamed = false;
-    let ended = false;
 
     function writeEvent(obj) {
       try {
         res.write(JSON.stringify(obj) + "\n");
-      } catch (e) {
-        // Ignore write errors (e.g., client disconnected).
-      }
+      } catch (e) {}
     }
 
-    function flushSentenceIfAny() {
-      const raw = sentenceBuffer;
-      if (!raw) return;
-      if (!/\S/.test(raw)) {
-        sentenceBuffer = "";
-        return;
-      }
-      writeEvent({ type: "sentence", text: raw });
-      sentenceBuffer = "";
-    }
-
-    function isSentenceTerminator(ch) {
-      return ch === "." || ch === "!" || ch === "?";
-    }
-
-    function handleVisibleDelta(deltaText) {
-      if (!deltaText) return;
-
-      if (!firstDeltaSeen) {
-        firstDeltaSeen = true;
-        writeEvent({ type: "typing", state: "start" });
-      }
-
-      for (const ch of deltaText) {
-        sentenceBuffer += ch;
-        if (isSentenceTerminator(ch)) {
-          flushSentenceIfAny();
-        }
-      }
-    }
-
-    function handleResponsesEvent(evt) {
-      if (!evt || typeof evt !== "object") return;
-      const type = typeof evt.type === "string" ? evt.type : "";
-
-      // Text deltas for the visible answer.
-      if (type.includes("output_text.delta")) {
-        let deltaText = "";
-
-        if (typeof evt.delta === "string") {
-          // LM Studio often uses a bare string for output_text.delta.
-          deltaText = evt.delta;
-        } else if (evt.delta && typeof evt.delta.text === "string") {
-          deltaText = evt.delta.text;
-        } else if (evt.delta && typeof evt.delta.output_text === "string") {
-          deltaText = evt.delta.output_text;
-        }
-
-        if (!deltaText) return;
-
-        fullAnswer += deltaText;
-        handleVisibleDelta(deltaText);
-        return;
-      }
-
-      // Reasoning text (may arrive as a string delta, an object with .text,
-      // or as a final event with a full text field).
-      if (type.includes("reasoning")) {
-        let textChunk = "";
-
-        if (typeof evt.delta === "string") {
-          // LM Studio often uses a bare string for reasoning_text.delta.
-          textChunk = evt.delta;
-        } else if (evt.delta && typeof evt.delta.text === "string") {
-          textChunk = evt.delta.text;
-        } else if (typeof evt.text === "string") {
-          textChunk = evt.text;
-        }
-
-        if (!textChunk) return;
-
-        reasoningBuffer += textChunk;
-        // Stream reasoning incrementally to the dev console.
-        writeEvent({ type: "reasoning", text: textChunk });
-        reasoningStreamed = true;
-        return;
-      }
-    }
-
-    upstream.data.on("data", (chunk) => {
-      if (ended) return;
-
-      sseBuffer += chunk.toString("utf8");
-
-      let newlineIndex;
-      while ((newlineIndex = sseBuffer.indexOf("\n")) >= 0) {
-        let line = sseBuffer.slice(0, newlineIndex);
-        sseBuffer = sseBuffer.slice(newlineIndex + 1);
-
-        line = line.trimEnd();
-        if (!line) continue;
-
-        if (!line.toLowerCase().startsWith("data:")) continue;
-
-        const dataPart = line.slice("data:".length).trim();
-        if (dataPart === "[DONE]") {
-          ended = true;
-          flushSentenceIfAny();
-          writeEvent({ type: "typing", state: "end" });
-          res.end();
-          return;
-        }
-
-        let parsed;
-        try {
-          parsed = JSON.parse(dataPart);
-        } catch {
-          continue;
-        }
-
-        handleResponsesEvent(parsed);
-      }
+    // Send a one-shot debug event so the frontend can display exactly what
+    // engine state and prompt content we are giving to the LLM.
+    writeEvent({
+      type: "engine_debug",
+      text: [
+        "ENGINE_STATE block sent to coach LLM:",
+        "",
+        engineStateBlock,
+        "",
+        "User content sent to coach LLM:",
+        "",
+        userContent,
+      ].join("\n"),
     });
 
-    upstream.data.on("end", () => {
-      if (ended) return;
-      ended = true;
-
-      flushSentenceIfAny();
-      writeEvent({ type: "typing", state: "end" });
-
-      // Send reasoning (if any) as a dev-only event. If we've already streamed
-      // reasoning chunks, avoid duplicating them here; otherwise, fall back to
-      // a single aggregated event.
-      if (!reasoningStreamed) {
-        let reasoningText = reasoningBuffer;
-        if (!reasoningText) {
-          const split = splitSmolReasoning(fullAnswer);
-          reasoningText = split.reasoning;
+    await streamCoachReply({
+      systemPrompt,
+      userContent,
+      reasoningEffort,
+      llmSource,
+      lanHost,
+      lanPort,
+      onTyping: (state) => {
+        writeEvent({ type: "typing", state });
+      },
+      onSentence: (text) => {
+        writeEvent({ type: "sentence", text });
+      },
+      onReasoning: (text) => {
+        writeEvent({ type: "reasoning", text });
+      },
+      onEnd: (info) => {
+        if (info && info.error) {
+          writeEvent({
+            type: "error",
+            message:
+              "LLM streaming request failed: " +
+              (info.error.message || String(info.error)),
+          });
         }
-        if (reasoningText) {
-          writeEvent({ type: "reasoning", text: reasoningText });
-        }
-      }
-
-      res.end();
-    });
-
-    upstream.data.on("error", (err) => {
-      if (ended) return;
-      ended = true;
-      writeEvent({
-        type: "error",
-        message: "Upstream LLM stream error: " + err.message,
-      });
-      writeEvent({ type: "typing", state: "end" });
-      res.end();
+        writeEvent({ type: "typing", state: "end" });
+        res.end();
+      },
     });
   } catch (err) {
     console.error("Error in /api/chat/stream:", err.response?.data || err.message);
@@ -896,17 +656,17 @@ app.post("/api/chat/stream", async (req, res) => {
         );
         res.write(JSON.stringify({ type: "typing", state: "end" }) + "\n");
         res.end();
-      } catch {
-        // Ignore.
-      }
+      } catch {}
     }
   }
 });
 
 async function buildSystemPrompt(personalityId, reasoningEffort) {
   const harness = [
-    "You are an in-browser chess coach assisting a human player.",
-    "You MUST only talk about chess positions and moves given in the ENGINE_STATE block.",
+    "You are a narration layer over a chess engine, not a chess engine yourself.",
+    "You MUST NOT calculate or choose moves on your own.",
+    "You ONLY rephrase and explain information that is explicitly present in the ENGINE_STATE block.",
+    "If a move, evaluation, piece square, or game result is not literally written in ENGINE_STATE, you must say you do not know it.",
     "You must not discuss real-world topics, politics, religion, or other sensitive content.",
     "You must always use PG-13 language and avoid profanity, slurs, or explicit content.",
     "If the player asks about anything non-chess, politely refuse and steer the discussion back to chess.",
@@ -914,7 +674,6 @@ async function buildSystemPrompt(personalityId, reasoningEffort) {
   ].join("\n");
 
   const coachCore = [
-    "You are a chess commentator that knows as little chess as possible.",
     "Treat yourself as a writing assistant that ONLY rewrites and explains what is already written in the ENGINE_STATE block.",
     "You NEVER invent engine evaluations, moves, or piece locations.",
     "You only explain and discuss what is contained in the ENGINE_STATE block.",
@@ -925,6 +684,7 @@ async function buildSystemPrompt(personalityId, reasoningEffort) {
     "If a move is not present in those lists, treat it as illegal for this position and do not recommend it.",
     "If ENGINE_STATE says the game is over (for example, checkmate, stalemate, or draw), clearly explain the final result and do NOT suggest any further moves for the side to move.",
     "Use the terminology and numeric information already present in ENGINE_STATE; you can vary phrasing, but you must not change the underlying facts.",
+    "Any internal reasoning you do is about how to explain things clearly, not about calculating or discovering new chess moves or evaluations.",
     "",
   ].join("\n");
 
@@ -934,7 +694,6 @@ async function buildSystemPrompt(personalityId, reasoningEffort) {
       const profile = await loadCharacterProfile(personalityId);
       personalityBlock = buildPersonalityPrompt(profile);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn(
         "Failed to load personality profile for LLM coach:",
         err && err.message ? err.message : err
@@ -942,14 +701,30 @@ async function buildSystemPrompt(personalityId, reasoningEffort) {
     }
   }
 
-  const sections = [harness, coachCore, personalityBlock];
+  const basePrompt =
+    systemPromptOverride && systemPromptOverride.trim().length > 0
+      ? systemPromptOverride
+      : [harness, coachCore].join("\n\n");
 
-  // If the caller requested explicit reasoning effort, nudge SmolLM3 into
-  // its thinking mode. The web layer still strips out <think>...</think>
-  // from the player-facing answer and only surfaces it in the dev panel.
-  const effort = normalizeReasoningEffort(reasoningEffort);
-  if (effort) {
-    sections.push("Reasoning mode: /think");
+  const sections = [basePrompt, personalityBlock];
+
+  const rawReasoning =
+    typeof reasoningEffort === "string"
+      ? reasoningEffort.trim().toLowerCase()
+      : "";
+
+  if (rawReasoning === "none" || rawReasoning === "off") {
+    // Explicitly discourage chain-of-thought when reasoning is disabled.
+    sections.push(
+      "Reasoning mode: /no_think. Answer directly and concisely, without writing out any step-by-step internal reasoning."
+    );
+  } else {
+    const effort = normalizeReasoningEffort(reasoningEffort);
+    if (effort) {
+      sections.push(
+        "Any internal reasoning you perform should follow: Reasoning mode: /think. This is only for structuring your explanation, not for discovering new chess facts."
+      );
+    }
   }
 
   return sections.filter(Boolean).join("\n\n");
@@ -967,26 +742,6 @@ function formatEvalInPawns(centipawnEval) {
   return pawns > 0 ? `+${absStr}` : `-${absStr}`;
 }
 
-/**
- * Serialize an engine state object into the ENGINE_STATE text block expected by the LLM.
- *
- * This mirrors the C# SerializeEngineState implementation in docs/llm.md:
- * - Side to move
- * - Current FEN
- * - Evaluation in centipawns for the side to move
- * - Optional evaluation comment
- * - Optional recent moves
- * - Optional top lines with move, eval in pawns, PV, and depth
- *
- * @param {Object} engineState
- * @param {string} engineState.fen
- * @param {string} engineState.sideToMove
- * @param {number} [engineState.centipawnEval]
- * @param {string} [engineState.evalComment]
- * @param {Array<Object>} [engineState.topLines]
- * @param {string} [engineState.moveHistory]
- * @returns {string}
- */
 function buildEngineStateBlock(engineState) {
   if (!engineState || typeof engineState !== "object") {
     throw new Error("engineState must be an object.");
@@ -1094,6 +849,314 @@ function buildEngineStateBlock(engineState) {
   return lines.join("\n");
 }
 
+function centipawnsForSide(engineState, sideLabel) {
+  if (
+    !engineState ||
+    !Number.isFinite(engineState.centipawnEval) ||
+    !engineState.sideToMove
+  ) {
+    return null;
+  }
+
+  const cp = engineState.centipawnEval;
+  const sideToMove =
+    typeof engineState.sideToMove === "string"
+      ? engineState.sideToMove.trim()
+      : "";
+
+  if (!sideToMove || (sideToMove !== "White" && sideToMove !== "Black")) {
+    return null;
+  }
+
+  if (sideToMove === sideLabel) {
+    return cp;
+  }
+
+  return -cp;
+}
+
+function classifyMoveQuality(deltaCp) {
+  if (!Number.isFinite(deltaCp)) {
+    return {
+      label: "unknown",
+      description:
+        "Move quality is unknown because the engine did not provide a numeric evaluation for the before/after positions.",
+    };
+  }
+
+  const pawns = deltaCp / 100;
+  const absPawns = Math.abs(pawns);
+
+  let label;
+  if (pawns >= 1.5) {
+    label = "brilliant";
+  } else if (pawns >= 0.75) {
+    label = "excellent";
+  } else if (pawns >= 0.25) {
+    label = "good";
+  } else if (absPawns < 0.25) {
+    label = "neutral";
+  } else if (pawns <= -1.75) {
+    label = "blunder";
+  } else if (pawns <= -1.0) {
+    label = "mistake";
+  } else {
+    label = "inaccuracy";
+  }
+
+  const direction = pawns >= 0 ? "improved" : "worsened";
+  const absText = absPawns.toFixed(2);
+
+  return {
+    label,
+    description: `From the engine's perspective for that side, this move ${direction} the evaluation by about ${absText} pawns (centipawn delta: ${deltaCp}).`,
+  };
+}
+
+function inferPieceNameFromSan(san) {
+  if (!san || typeof san !== "string") return null;
+  const s = san.trim();
+  if (!s) return null;
+
+  // Handle promotion like d8=Q+ first.
+  const promoMatch = s.match(/=([QRBN])/i);
+  const lead = promoMatch ? promoMatch[1] : s[0];
+  const c = String(lead).toUpperCase();
+
+  if (c === "K") return "king";
+  if (c === "Q") return "queen";
+  if (c === "R") return "rook";
+  if (c === "B") return "bishop";
+  if (c === "N") return "knight";
+
+  // No explicit piece letter → pawn move.
+  return "pawn";
+}
+
+function buildCommentMetaFromPositions(
+  positions,
+  playerColorRaw,
+  commentTargetRaw
+) {
+  if (!Array.isArray(positions) || positions.length < 2) {
+    return null;
+  }
+
+  const playerColor =
+    typeof playerColorRaw === "string" &&
+    playerColorRaw.toLowerCase() === "black"
+      ? "Black"
+      : "White";
+
+  const targetKind =
+    typeof commentTargetRaw === "string" &&
+    commentTargetRaw.toLowerCase() === "llm"
+      ? "llm"
+      : "player";
+
+  const targetSide =
+    targetKind === "player"
+      ? playerColor
+      : playerColor === "White"
+      ? "Black"
+      : "White";
+
+  // Search from the end for the last move played by targetSide.
+  for (let i = positions.length - 1; i >= 1; i -= 1) {
+    const node = positions[i];
+    if (!node || typeof node.color !== "string") continue;
+    if (node.color !== targetSide) continue;
+
+    const prev = positions[i - 1];
+    if (!prev || !prev.fen || !node.fen) continue;
+
+    const ply = Number.isInteger(node.ply) ? node.ply : i;
+    const moveNumber =
+      Number.isInteger(node.moveNumber) && node.moveNumber > 0
+        ? node.moveNumber
+        : Math.floor((ply + 1) / 2);
+
+    const san = typeof node.san === "string" ? node.san.trim() : "";
+
+    return {
+      targetKind,
+      targetSide,
+      moveSan: san,
+      moveNumber,
+      plyIndex: i,
+      beforeFen: prev.fen,
+      afterFen: node.fen,
+    };
+  }
+
+  return null;
+}
+
+async function buildCoachEngineStateBlock({
+  chess,
+  personalityId,
+  playerColor,
+  commentTarget,
+}) {
+  const fen = chess.fen();
+  const sideToMove = chess.turn() === "w" ? "White" : "Black";
+  const historySan = chess.history() || [];
+  const moveHistory = Array.isArray(historySan) ? historySan.join(" ") : "";
+
+  const { gameStatus, legalMovesSan, piecePlacement } = summarizeGameState(
+    chess
+  );
+
+  const engineState = await analyzePosition({
+    fen,
+    sideToMove,
+    moveHistory,
+    personalityId,
+    gameStatus,
+    legalMovesSan,
+    piecePlacement,
+  });
+
+  let engineStateBlock = buildEngineStateBlock(engineState);
+
+  // Optionally add a focused before/after analysis for the selected move.
+  try {
+    const positions = buildPgnPositions(chess);
+    const meta = buildCommentMetaFromPositions(
+      positions,
+      playerColor,
+      commentTarget
+    );
+    if (!meta) {
+      return engineStateBlock;
+    }
+
+    const historyLength = Array.isArray(historySan) ? historySan.length : 0;
+    if (!historyLength || !Number.isInteger(meta.plyIndex)) {
+      return engineStateBlock;
+    }
+
+    const plyIndex = meta.plyIndex;
+    const moveHistoryBefore =
+      plyIndex > 1
+        ? historySan.slice(0, plyIndex - 1).join(" ")
+        : "";
+    const moveHistoryAfter =
+      plyIndex > 0
+        ? historySan.slice(0, plyIndex).join(" ")
+        : historySan.join(" ");
+
+    let chessBefore;
+    let chessAfter;
+    try {
+      chessBefore = new Chess(meta.beforeFen);
+    } catch (_) {}
+    try {
+      chessAfter = new Chess(meta.afterFen);
+    } catch (_) {}
+
+    if (!chessBefore || !chessAfter) {
+      return engineStateBlock;
+    }
+
+    const sideToMoveBefore = chessBefore.turn() === "w" ? "White" : "Black";
+    const sideToMoveAfter = chessAfter.turn() === "w" ? "White" : "Black";
+
+    const summaryBefore = summarizeGameState(chessBefore);
+    const summaryAfter = summarizeGameState(chessAfter);
+
+    const [beforeState, afterState] = await Promise.all([
+      analyzePosition({
+        fen: meta.beforeFen,
+        sideToMove: sideToMoveBefore,
+        moveHistory: moveHistoryBefore,
+        personalityId,
+        gameStatus: summaryBefore.gameStatus,
+        legalMovesSan: summaryBefore.legalMovesSan,
+        piecePlacement: summaryBefore.piecePlacement,
+      }),
+      analyzePosition({
+        fen: meta.afterFen,
+        sideToMove: sideToMoveAfter,
+        moveHistory: moveHistoryAfter,
+        personalityId,
+        gameStatus: summaryAfter.gameStatus,
+        legalMovesSan: summaryAfter.legalMovesSan,
+        piecePlacement: summaryAfter.piecePlacement,
+      }),
+    ]);
+
+    if (!beforeState || !afterState) {
+      return engineStateBlock;
+    }
+
+    const beforeBlock = buildEngineStateBlock(beforeState);
+    const afterBlock = buildEngineStateBlock(afterState);
+
+    let qualityLine = "";
+    if (meta.targetSide) {
+      const beforeForSide = centipawnsForSide(beforeState, meta.targetSide);
+      const afterForSide = centipawnsForSide(afterState, meta.targetSide);
+      if (
+        Number.isFinite(beforeForSide) &&
+        Number.isFinite(afterForSide)
+      ) {
+        const delta = afterForSide - beforeForSide;
+        const quality = classifyMoveQuality(delta);
+        qualityLine = `Engine move-quality label for this move (for ${meta.targetSide}): ${quality.label}. ${quality.description}`;
+      }
+    }
+
+    const subjectLabel =
+      meta.targetKind === "llm"
+        ? "the LLM's most recent move"
+        : "the player's most recent move";
+
+    const descriptorParts = [];
+    if (Number.isInteger(meta.moveNumber) && meta.moveNumber > 0) {
+      descriptorParts.push(`move ${meta.moveNumber}`);
+    }
+    if (meta.targetSide) {
+      descriptorParts.push(meta.targetSide);
+    }
+    if (meta.moveSan) {
+      descriptorParts.push(meta.moveSan);
+    }
+    const moveDescriptor =
+      descriptorParts.length > 0
+        ? descriptorParts.join(" ")
+        : "the last relevant move in the PGN";
+
+    let commentHeader = "[COMMENT_TARGET]\n";
+    commentHeader += `The engine has identified ${subjectLabel} (${moveDescriptor}) as the move to talk about.\n`;
+    if (qualityLine) {
+      commentHeader += `${qualityLine}\n`;
+    }
+    if (meta.targetKind === "player") {
+      commentHeader +=
+        "You are role-playing the AI opponent. Comment on the human player's move strictly from the AI opponent's point of view.\n";
+    } else {
+      commentHeader +=
+        "You are role-playing the AI opponent. Briefly reflect on your own (engine) last move from that point of view.\n";
+    }
+    commentHeader +=
+      "Here is the engine evaluation immediately BEFORE that move:\n\n";
+    commentHeader += beforeBlock;
+    commentHeader +=
+      "\n\nHere is the engine evaluation immediately AFTER that move:\n\n";
+    commentHeader += afterBlock;
+    commentHeader +=
+      "\nYou must only rephrase and explain this engine-provided information and move-quality label; do not perform any additional chess calculation or decide for yourself whether the move was a blunder or brilliancy.\n";
+    commentHeader += "\n[END_COMMENT_TARGET]";
+
+    engineStateBlock = `${engineStateBlock}\n\n${commentHeader}`;
+  } catch (err) {
+    console.warn("Failed to build comment-target block for coach:", err);
+  }
+
+  return engineStateBlock;
+}
+
 function buildUserContent(engineStateBlock, question) {
   const parts = [];
   parts.push("Here is the current game state and engine analysis:");
@@ -1105,9 +1168,94 @@ function buildUserContent(engineStateBlock, question) {
     parts.push("Player question:");
     parts.push(question);
   } else {
-    parts.push(
-      "Explain the evaluation, the main plan for the side to move, and typical tactical ideas for both sides."
+    if (
+      fallbackUserPromptOverride &&
+      typeof fallbackUserPromptOverride === "string" &&
+      fallbackUserPromptOverride.trim().length > 0
+    ) {
+      parts.push(fallbackUserPromptOverride.trim());
+    } else {
+      parts.push(
+        "Explain, in plain language, what the ENGINE_STATE block says. Describe the evaluation, game status, and the engine's top lines, and summarize the typical plans they suggest, without inventing any new moves, evaluations, or piece locations."
+      );
+    }
+  }
+
+  return parts.join("\n");
+}
+
+function buildTauntSystemPrompt(personalityPrompt, reasoningEffort) {
+  const base =
+    tauntSystemPromptOverride && tauntSystemPromptOverride.trim().length > 0
+      ? tauntSystemPromptOverride.trim()
+      : [
+          "Your conversation partner is a human chess player using Rodent IV.",
+          "You are playing the role of their computer opponent, speaking in the voice of the Rodent character described in the persona.",
+          "",
+          "You are given short descriptions of what the chess engine thinks is happening in the game and a simple taunt idea.",
+          "Treat this description and taunt idea as everything you need to know about the position.",
+          "Focus entirely on wording, style, and personality; the engine and taunt idea already handle the chess details.",
+          "",
+          "Your job is to turn each taunt idea into one vivid, in-character sentence directed at the player.",
+          "Keep the tone playful and competitive, in line with the character's rudeness level.",
+          "Use plain language instead of technical chess notation.",
+          "Keep all comments PG-13 and clearly related to the game.",
+        ].join("\n");
+
+  const sections = [base];
+  if (personalityPrompt) {
+    sections.push(personalityPrompt);
+  }
+
+  const rawReasoning =
+    typeof reasoningEffort === "string"
+      ? reasoningEffort.trim().toLowerCase()
+      : "";
+
+  if (rawReasoning === "none" || rawReasoning === "off") {
+    sections.push(
+      "Reasoning mode: /no_think. Write the taunt sentence directly without exposing any internal step-by-step reasoning."
     );
+  } else {
+    const effort = normalizeReasoningEffort(reasoningEffort);
+    if (effort) {
+      sections.push(
+        "You may internally think step-by-step about how to phrase the taunt, but you still rely entirely on the taunt idea for chess details."
+      );
+    }
+  }
+
+  return sections.filter(Boolean).join("\n\n");
+}
+
+function buildTauntUserContent(tauntDescriptor, extraUserText) {
+  const parts = [];
+
+  const descriptionBlock = describeTauntForLlm(tauntDescriptor);
+  parts.push("Here is the taunt idea to base your reply on:");
+  parts.push("");
+  parts.push(descriptionBlock);
+  parts.push("");
+
+  if (
+    tauntFallbackPromptOverride &&
+    typeof tauntFallbackPromptOverride === "string" &&
+    tauntFallbackPromptOverride.trim().length > 0
+  ) {
+    parts.push(tauntFallbackPromptOverride.trim());
+  } else {
+    parts.push(
+      "Using the taunt idea and persona, write one short taunt sentence (5–25 words) directed at the player."
+    );
+    parts.push(
+      "Highlight the described theme in playful language that fits the character, and use plain language instead of technical chess notation."
+    );
+  }
+
+  if (extraUserText && extraUserText.trim().length > 0) {
+    parts.push("");
+    parts.push("Player message (extra flavor, not for chess facts):");
+    parts.push(extraUserText.trim());
   }
 
   return parts.join("\n");
@@ -1118,7 +1266,6 @@ app.get("/api/personalities", async (req, res) => {
     const list = await listCharacters();
     res.json(list);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("Error in /api/personalities:", err);
     res.status(500).json({
       error: "Failed to load personalities.",
@@ -1129,3 +1276,420 @@ app.get("/api/personalities", async (req, res) => {
 app.listen(port, () => {
   console.log(`LLM coach web listening on http://localhost:${port}`);
 });
+
+// LLM-powered taunt endpoints. These accept a pre-digested TauntDescriptor
+// and persona information and ask the model to turn it into a single
+// colorful taunt sentence. No FEN or ENGINE_STATE is passed here; all
+// chess reasoning stays in the engine + taunt classifier layers.
+
+async function buildTauntDescriptorFromPgn({
+  pgnText,
+  characterId,
+  tauntTargetSide,
+  playerColor,
+}) {
+  const targetSide = tauntTargetSide || "player";
+
+  if (!pgnText || typeof pgnText !== "string") {
+    const engineState = null;
+    return buildTauntDescriptorFromEngine(engineState, {
+      targetSide,
+    });
+  }
+
+  let chess;
+  try {
+    chess = parsePgnToChessOrThrow(pgnText);
+  } catch (err) {
+    const error = new Error(err.message || "Could not parse PGN for taunt.");
+    error.status = err.status && Number.isInteger(err.status) ? err.status : 400;
+    throw error;
+  }
+
+  const fen = chess.fen();
+  const sideToMove = chess.turn() === "w" ? "White" : "Black";
+  const historySan = chess.history() || [];
+  const moveHistory = Array.isArray(historySan) ? historySan.join(" ") : "";
+
+  const { gameStatus, legalMovesSan, piecePlacement } = summarizeGameState(
+    chess
+  );
+
+  // Baseline descriptor from the final position: overall advantage / game
+  // status for the side to move.
+  const engineState = await analyzePosition({
+    fen,
+    sideToMove,
+    moveHistory,
+    personalityId: characterId,
+    gameStatus,
+    legalMovesSan,
+    piecePlacement,
+  });
+
+  const baseDescriptor = buildTauntDescriptorFromEngine(engineState, {
+    targetSide,
+  });
+
+  // Refine the taunt around a specific targeted move by the player, using the
+  // same PGN-derived move metadata and before/after engine analysis that the
+  // coach path uses. If anything in this block fails, we surface an explicit
+  // error so the caller can treat it as a fatal condition instead of guessing.
+  const positions = buildPgnPositions(chess);
+
+    // For taunts we always focus on the human player's move, not the engine's
+    // move, so we pass commentTargetRaw = "player". The playerColor field
+    // comes from the UI ("white" | "black").
+    const meta = buildCommentMetaFromPositions(
+      positions,
+      playerColor || "white",
+      "player"
+    );
+    if (!meta || !Number.isInteger(meta.plyIndex)) {
+      const error = new Error(
+        "Could not identify a targeted human move in the PGN for taunt analysis."
+      );
+      error.status = 500;
+      error.code = "ENGINE_TAUNT_NO_TARGET_MOVE";
+      throw error;
+    }
+
+    const historyLength = Array.isArray(historySan) ? historySan.length : 0;
+    if (!historyLength) {
+      const error = new Error(
+        "Engine taunt analysis found no SAN move history for before/after reconstruction."
+      );
+      error.status = 500;
+      error.code = "ENGINE_TAUNT_NO_HISTORY";
+      throw error;
+    }
+
+    const plyIndex = meta.plyIndex;
+    const moveHistoryBefore =
+      plyIndex > 1 ? historySan.slice(0, plyIndex - 1).join(" ") : "";
+    const moveHistoryAfter =
+      plyIndex > 0 ? historySan.slice(0, plyIndex).join(" ") : moveHistory;
+
+    let chessBefore;
+    let chessAfter;
+    try {
+      chessBefore = new Chess(meta.beforeFen);
+    } catch (_) {}
+    try {
+      chessAfter = new Chess(meta.afterFen);
+    } catch (_) {}
+
+    if (!chessBefore || !chessAfter) {
+      const error = new Error(
+        "Engine taunt analysis could not reconstruct before/after positions for the targeted move."
+      );
+      error.status = 500;
+      error.code = "ENGINE_TAUNT_BAD_BEFORE_AFTER";
+      throw error;
+    }
+
+    const sideToMoveBefore = chessBefore.turn() === "w" ? "White" : "Black";
+    const sideToMoveAfter = chessAfter.turn() === "w" ? "White" : "Black";
+
+    const summaryBefore = summarizeGameState(chessBefore);
+    const summaryAfter = summarizeGameState(chessAfter);
+
+    const [beforeState, afterState] = await Promise.all([
+      analyzePosition({
+        fen: meta.beforeFen,
+        sideToMove: sideToMoveBefore,
+        moveHistory: moveHistoryBefore,
+        personalityId: characterId,
+        gameStatus: summaryBefore.gameStatus,
+        legalMovesSan: summaryBefore.legalMovesSan,
+        piecePlacement: summaryBefore.piecePlacement,
+      }),
+      analyzePosition({
+        fen: meta.afterFen,
+        sideToMove: sideToMoveAfter,
+        moveHistory: moveHistoryAfter,
+        personalityId: characterId,
+        gameStatus: summaryAfter.gameStatus,
+        legalMovesSan: summaryAfter.legalMovesSan,
+        piecePlacement: summaryAfter.piecePlacement,
+      }),
+    ]);
+
+    if (!beforeState || !afterState) {
+      const error = new Error(
+        "Engine taunt analysis did not return evaluations for the before/after positions of the targeted move."
+      );
+      error.status = 500;
+      error.code = "ENGINE_TAUNT_NO_BEFORE_AFTER_STATE";
+      throw error;
+    }
+
+    // Measure the change in evaluation for the side that actually played the
+    // targeted move (meta.targetSide is "White" or "Black"). This ensures the
+    // taunt reflects whether that specific move was a brilliancy or a blunder
+    // from the mover's perspective.
+    const moveSideLabel = meta.targetSide || "White";
+    const inferredPiece = inferPieceNameFromSan(meta.moveSan || "");
+
+    const descriptorBase = {
+      ...baseDescriptor,
+      piece: inferredPiece || baseDescriptor.piece,
+      moveSide: moveSideLabel,
+      moveNumber:
+        Number.isInteger(meta.moveNumber) && meta.moveNumber > 0
+          ? meta.moveNumber
+          : undefined,
+      moveSan: meta.moveSan || undefined,
+    };
+
+    const beforeForMover = centipawnsForSide(beforeState, moveSideLabel);
+    const afterForMover = centipawnsForSide(afterState, moveSideLabel);
+
+    if (
+      !Number.isFinite(beforeForMover) ||
+      !Number.isFinite(afterForMover)
+    ) {
+      const error = new Error(
+        "Engine did not provide numeric evaluations for the before/after positions of the targeted move; cannot classify taunt."
+      );
+      error.status = 500;
+      error.code = "ENGINE_TAUNT_NO_NUMERIC_DELTA";
+      throw error;
+    }
+
+    const deltaCp = afterForMover - beforeForMover;
+    const quality = classifyMoveQuality(deltaCp);
+
+    return {
+      ...descriptorBase,
+      moveQualityLabel: quality.label,
+      moveQualityDetail: quality.description,
+      moveDeltaCentipawns: deltaCp,
+    };
+  }
+
+app.post("/api/taunt", async (req, res) => {
+  try {
+    const {
+      taunt,
+      pgnText,
+      characterId,
+      tauntTargetSide,
+      playerColor,
+      reasoningEffort,
+      playerMessage,
+      llmSource,
+      lanHost,
+      lanPort,
+    } = req.body || {};
+
+    let effectiveTaunt = taunt;
+
+    if (!effectiveTaunt) {
+      effectiveTaunt = await buildTauntDescriptorFromPgn({
+        pgnText,
+        characterId,
+        tauntTargetSide,
+        playerColor,
+      });
+    }
+
+    if (!effectiveTaunt || typeof effectiveTaunt !== "object") {
+      return res.status(400).json({
+        error: "taunt (object) or pgnText (string) is required for /api/taunt.",
+      });
+    }
+
+    let personalityPrompt = "";
+    if (characterId) {
+      try {
+        const profile = await loadCharacterProfile(characterId);
+        personalityPrompt = buildPersonalityPrompt(profile);
+      } catch (err) {
+        console.warn(
+          "Failed to load personality profile for taunt:",
+          err && err.message ? err.message : err
+        );
+      }
+    }
+
+    const systemPrompt = buildTauntSystemPrompt(
+      personalityPrompt,
+      reasoningEffort
+    );
+    const userContent = buildTauntUserContent(
+      effectiveTaunt,
+      playerMessage || ""
+    );
+
+    const result = await completeTaunt({
+      systemPrompt,
+      userContent,
+      reasoningEffort,
+      llmSource,
+      lanHost,
+      lanPort,
+    });
+
+    const tauntText =
+      typeof result.answerText === "string"
+        ? result.answerText.trim()
+        : "";
+
+    res.json({ taunt: tauntText });
+  } catch (err) {
+    console.error("Error in /api/taunt:", err.response?.data || err.message);
+    const status =
+      err.status && Number.isInteger(err.status) ? err.status : 500;
+    res.status(status).json({
+      error:
+        err.code && String(err.code).startsWith("ENGINE_TAUNT")
+          ? err.message
+          : "LLM taunt request failed.",
+      details: err.message,
+    });
+  }
+});
+
+app.post("/api/taunt/stream", async (req, res) => {
+  try {
+    const {
+      taunt,
+      pgnText,
+      characterId,
+      tauntTargetSide,
+      playerColor,
+      reasoningEffort,
+      playerMessage,
+      llmSource,
+      lanHost,
+      lanPort,
+    } = req.body || {};
+
+    let effectiveTaunt = taunt;
+
+    if (!effectiveTaunt) {
+      effectiveTaunt = await buildTauntDescriptorFromPgn({
+        pgnText,
+        characterId,
+        tauntTargetSide,
+        playerColor,
+      });
+    }
+
+    if (!effectiveTaunt || typeof effectiveTaunt !== "object") {
+      res.status(400).json({
+        error:
+          "taunt (object) or pgnText (string) is required for /api/taunt/stream.",
+      });
+      return;
+    }
+
+    let personalityPrompt = "";
+    if (characterId) {
+      try {
+        const profile = await loadCharacterProfile(characterId);
+        personalityPrompt = buildPersonalityPrompt(profile);
+      } catch (err) {
+        console.warn(
+          "Failed to load personality profile for taunt:",
+          err && err.message ? err.message : err
+        );
+      }
+    }
+
+    const systemPrompt = buildTauntSystemPrompt(
+      personalityPrompt,
+      reasoningEffort
+    );
+    const userContent = buildTauntUserContent(
+      effectiveTaunt,
+      playerMessage || ""
+    );
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
+
+    function writeEvent(obj) {
+      try {
+        res.write(JSON.stringify(obj) + "\n");
+      } catch (e) {}
+    }
+
+    // Send a one-shot debug event so the frontend can display the engine-driven
+    // taunt descriptor and the exact prompt content used for the LLM taunt.
+    writeEvent({
+      type: "engine_debug",
+      text: [
+        "Engine-derived taunt descriptor:",
+        "",
+        JSON.stringify(effectiveTaunt, null, 2),
+        "",
+        "User content sent to taunt LLM:",
+        "",
+        userContent,
+      ].join("\n"),
+    });
+
+    await streamTaunt({
+      systemPrompt,
+      userContent,
+      reasoningEffort,
+      llmSource,
+      lanHost,
+      lanPort,
+      onTyping: (state) => {
+        writeEvent({ type: "typing", state });
+      },
+      onSentence: (text) => {
+        writeEvent({ type: "sentence", text });
+      },
+      onReasoning: (text) => {
+        writeEvent({ type: "reasoning", text });
+      },
+      onEnd: (info) => {
+        if (info && info.error) {
+          writeEvent({
+            type: "error",
+            message:
+              "LLM taunt streaming request failed: " +
+              (info.error.message || String(info.error)),
+          });
+        }
+        writeEvent({ type: "typing", state: "end" });
+        res.end();
+      },
+    });
+  } catch (err) {
+    console.error(
+      "Error in /api/taunt/stream:",
+      err.response?.data || err.message
+    );
+    if (!res.headersSent) {
+      const status =
+        err.status && Number.isInteger(err.status) ? err.status : 500;
+      res.status(status).json({
+        error:
+          err.code && String(err.code).startsWith("ENGINE_TAUNT")
+            ? err.message
+            : "LLM taunt streaming request failed.",
+        details: err.message,
+      });
+    } else {
+      try {
+        res.write(
+          JSON.stringify({
+            type: "error",
+            message:
+              (err.code && String(err.code).startsWith("ENGINE_TAUNT")
+                ? err.message
+                : "LLM taunt streaming request failed: " + err.message) || "",
+          }) + "\n"
+        );
+        res.write(JSON.stringify({ type: "typing", state: "end" }) + "\n");
+        res.end();
+      } catch {}
+    }
+  }
+});
+

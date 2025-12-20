@@ -7,7 +7,18 @@
   const statusEl = document.getElementById("status");
   const personalitySelect = document.getElementById("personalitySelect");
   const reasoningLog = document.getElementById("reasoningLog");
+  const engineLog = document.getElementById("engineLog");
   const reasoningSelect = document.getElementById("reasoningSelect");
+  const useTauntMode = document.getElementById("useTauntMode");
+  const llmSourceSelect = document.getElementById("llmSourceSelect");
+  const llmLanHostInput = document.getElementById("llmLanHost");
+  const llmLanPortInput = document.getElementById("llmLanPort");
+  const llmLanRow = document.getElementById("llmLanRow");
+  const remoteFallbackToggle = document.getElementById("remoteFallbackToggle");
+  const remoteFallbackRow = document.getElementById("remoteFallbackRow");
+  const playerColorSelect = document.getElementById("playerColorSelect");
+  const commentTargetSelect = document.getElementById("commentTargetSelect");
+  const pgnBoardContainer = document.getElementById("pgnBoardContainer");
   const pgnBoard = document.getElementById("pgnBoard");
   const pgnBoardCaption = document.getElementById("pgnBoardCaption");
   const pgnFirstBtn = document.getElementById("pgnFirstBtn");
@@ -15,14 +26,32 @@
   const pgnNextBtn = document.getElementById("pgnNextBtn");
   const pgnLastBtn = document.getElementById("pgnLastBtn");
   const pgnMoveInfo = document.getElementById("pgnMoveInfo");
+  const headerEl = document.querySelector(".header");
+  const inputSectionToggleBtn = document.getElementById("inputSectionToggleBtn");
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
 
   let currentPgnText = "";
   let currentCoachMarkdown = "";
-  /** @type {Array<{ index: number, fen: string, ply: number, san: string | null, moveNumber: number, color: string }>} */
+  /**
+   * @type {Array<{
+   *   index: number,
+   *   fen: string,
+   *   ply: number,
+   *   san: string | null,
+   *   moveNumber: number,
+   *   color: string,
+   *   lastMove: { from: string, to: string } | null
+   * }>}
+   */
   let currentPgnPositions = [];
   let currentPgnIndex = 0;
   let currentReasoningBlock = null;
   let reasoningSentenceBuffer = "";
+  let pgnArrowSvg = null;
+
+  const SHOW_DIAGNOSTIC_SYSTEM_MESSAGES = false;
+  let inputSectionCollapsed = false;
 
   function pieceCodeFromSymbol(symbol) {
     if (!symbol || typeof symbol !== "string") return "";
@@ -45,10 +74,164 @@
     return (fileNumber + rankNumber) % 2 === 0;
   }
 
+  function normalizeSquare(square) {
+    if (!square || typeof square !== "string") return null;
+    const s = square.trim().toLowerCase();
+    if (!/^[a-h][1-8]$/.test(s)) return null;
+    return s;
+  }
+
+  function squareCenterPoint(square, boardWidth, boardHeight) {
+    const s = normalizeSquare(square);
+    if (!s) return null;
+
+    const fileIndex = s.charCodeAt(0) - "a".charCodeAt(0); // 0..7
+    const rank = parseInt(s[1], 10); // 1..8
+    if (!Number.isFinite(rank) || rank < 1 || rank > 8) return null;
+
+    const x = ((fileIndex + 0.5) / 8) * boardWidth;
+    const rowIndexFromTop = 8 - rank; // rank 8 -> row 0
+    const y = ((rowIndexFromTop + 0.5) / 8) * boardHeight;
+    return { x, y };
+  }
+
+  function squareRect(square, boardWidth, boardHeight) {
+    const s = normalizeSquare(square);
+    if (!s) return null;
+
+    const fileIndex = s.charCodeAt(0) - "a".charCodeAt(0); // 0..7
+    const rank = parseInt(s[1], 10); // 1..8
+    if (!Number.isFinite(rank) || rank < 1 || rank > 8) return null;
+
+    const cellWidth = boardWidth / 8;
+    const cellHeight = boardHeight / 8;
+    const rowIndexFromTop = 8 - rank; // rank 8 -> row 0
+
+    return {
+      x: fileIndex * cellWidth,
+      y: rowIndexFromTop * cellHeight,
+      width: cellWidth,
+      height: cellHeight,
+    };
+  }
+
+  function clearLastMoveArrow() {
+    if (pgnArrowSvg && pgnArrowSvg.parentNode) {
+      pgnArrowSvg.parentNode.removeChild(pgnArrowSvg);
+    }
+    pgnArrowSvg = null;
+  }
+
+  function drawLastMoveArrow(lastMove) {
+    if (!pgnBoardContainer || !pgnBoard) return;
+
+    if (!lastMove || !lastMove.from || !lastMove.to) {
+      clearLastMoveArrow();
+      return;
+    }
+
+    const boardRect = pgnBoard.getBoundingClientRect();
+    const containerRect = pgnBoardContainer.getBoundingClientRect();
+    const width = boardRect.width || pgnBoard.clientWidth;
+    const height = boardRect.height || pgnBoard.clientHeight;
+
+    if (!width || !height) {
+      clearLastMoveArrow();
+      return;
+    }
+
+    const fromPoint = squareCenterPoint(lastMove.from, width, height);
+    const toPoint = squareCenterPoint(lastMove.to, width, height);
+    if (!fromPoint || !toPoint) {
+      clearLastMoveArrow();
+      return;
+    }
+
+    if (!pgnArrowSvg) {
+      pgnArrowSvg = document.createElementNS(SVG_NS, "svg");
+      pgnArrowSvg.setAttribute("class", "pgn-last-move-arrow");
+      pgnBoardContainer.appendChild(pgnArrowSvg);
+    }
+
+    pgnArrowSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    pgnArrowSvg.setAttribute("preserveAspectRatio", "none");
+    pgnArrowSvg.style.left = `${boardRect.left - containerRect.left}px`;
+    pgnArrowSvg.style.top = `${boardRect.top - containerRect.top}px`;
+    pgnArrowSvg.style.width = `${width}px`;
+    pgnArrowSvg.style.height = `${height}px`;
+    pgnArrowSvg.innerHTML = "";
+
+    const arrowColor = "#f6b040";
+
+    // Highlight origin and destination squares with a soft overlay.
+    const fromRect = squareRect(lastMove.from, width, height);
+    const toRect = squareRect(lastMove.to, width, height);
+
+    const highlightOpacity = 0.45;
+
+    if (fromRect) {
+      const fromHighlight = document.createElementNS(SVG_NS, "rect");
+      fromHighlight.setAttribute("x", String(fromRect.x));
+      fromHighlight.setAttribute("y", String(fromRect.y));
+      fromHighlight.setAttribute("width", String(fromRect.width));
+      fromHighlight.setAttribute("height", String(fromRect.height));
+      fromHighlight.setAttribute("fill", arrowColor);
+      fromHighlight.setAttribute("fill-opacity", String(highlightOpacity));
+      fromHighlight.setAttribute("stroke", "none");
+      pgnArrowSvg.appendChild(fromHighlight);
+    }
+
+    if (toRect) {
+      const toHighlight = document.createElementNS(SVG_NS, "rect");
+      toHighlight.setAttribute("x", String(toRect.x));
+      toHighlight.setAttribute("y", String(toRect.y));
+      toHighlight.setAttribute("width", String(toRect.width));
+      toHighlight.setAttribute("height", String(toRect.height));
+      toHighlight.setAttribute("fill", arrowColor);
+      toHighlight.setAttribute("fill-opacity", String(highlightOpacity));
+      toHighlight.setAttribute("stroke", "none");
+      pgnArrowSvg.appendChild(toHighlight);
+    }
+
+    const defs = document.createElementNS(SVG_NS, "defs");
+    const marker = document.createElementNS(SVG_NS, "marker");
+    marker.setAttribute("id", "pgnArrowHead");
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("markerWidth", "12");
+    marker.setAttribute("markerHeight", "12");
+    marker.setAttribute("refX", "9");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("orient", "auto");
+    marker.setAttribute("markerUnits", "userSpaceOnUse");
+
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", "M0,0 L0,10 L10,5 z");
+    path.setAttribute("fill", arrowColor);
+    path.setAttribute("stroke", "none");
+
+    marker.appendChild(path);
+    defs.appendChild(marker);
+    pgnArrowSvg.appendChild(defs);
+
+    const line = document.createElementNS(SVG_NS, "line");
+    line.setAttribute("x1", String(fromPoint.x));
+    line.setAttribute("y1", String(fromPoint.y));
+    line.setAttribute("x2", String(toPoint.x));
+    line.setAttribute("y2", String(toPoint.y));
+
+    const thickness = Math.max(width, height) * 0.02;
+    line.setAttribute("stroke", arrowColor);
+    line.setAttribute("stroke-width", String(thickness));
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("marker-end", "url(#pgnArrowHead)");
+
+    pgnArrowSvg.appendChild(line);
+  }
+
   function renderBoardFromFen(fen, options = {}) {
     if (!pgnBoard) return;
 
-    const { captionOverride } = options;
+    const { captionOverride, lastMove } = options;
 
     pgnBoard.innerHTML = "";
 
@@ -57,6 +240,7 @@
         pgnBoardCaption.textContent =
           captionOverride || "No PGN loaded yet.";
       }
+      clearLastMoveArrow();
       return;
     }
 
@@ -66,6 +250,7 @@
         pgnBoardCaption.textContent =
           captionOverride || "Could not parse PGN position.";
       }
+      clearLastMoveArrow();
       return;
     }
 
@@ -75,6 +260,7 @@
         pgnBoardCaption.textContent =
           captionOverride || "Could not parse PGN position.";
       }
+      clearLastMoveArrow();
       return;
     }
 
@@ -122,6 +308,8 @@
       rank -= 1;
     }
 
+    drawLastMoveArrow(lastMove || null);
+
     if (pgnBoardCaption) {
       pgnBoardCaption.textContent =
         captionOverride ||
@@ -162,11 +350,25 @@
     const node = currentPgnPositions[currentPgnIndex];
     if (!node || !node.fen) return;
 
+    // Determine the side to move from the FEN itself instead of relying on
+    // the move color stored in the positions array. The FEN's second field
+    // is "w" or "b", which directly encodes whose turn it is.
+    let sideToMoveLabel = "";
+    if (typeof node.fen === "string") {
+      const parts = node.fen.split(" ");
+      if (parts[1] === "b") {
+        sideToMoveLabel = "Black";
+      } else if (parts[1] === "w") {
+        sideToMoveLabel = "White";
+      }
+    }
+
     renderBoardFromFen(node.fen, {
       captionOverride:
         currentPgnIndex === maxIndex
-          ? `Final position from PGN • ${node.color || ""} to move`
-          : `${node.color || ""} to move (after move ${currentPgnIndex})`,
+          ? `Final position from PGN • ${sideToMoveLabel || ""} to move`
+          : `${sideToMoveLabel || ""} to move (after move ${currentPgnIndex})`,
+      lastMove: node.lastMove || null,
     });
     updatePgnMoveInfo();
   }
@@ -221,6 +423,21 @@
     statusEl.textContent = text || "";
   }
 
+  function setInputSectionCollapsed(collapsed) {
+    inputSectionCollapsed = !!collapsed;
+    if (!headerEl || !inputSectionToggleBtn) return;
+
+    if (inputSectionCollapsed) {
+      headerEl.classList.add("header--collapsed");
+      inputSectionToggleBtn.textContent = "Show setup";
+      inputSectionToggleBtn.setAttribute("aria-expanded", "false");
+    } else {
+      headerEl.classList.remove("header--collapsed");
+      inputSectionToggleBtn.textContent = "Hide setup";
+      inputSectionToggleBtn.setAttribute("aria-expanded", "true");
+    }
+  }
+
   function addMessage(role, text) {
     const div = document.createElement("div");
     div.className = `msg msg-${role}`;
@@ -259,6 +476,23 @@
 
     reasoningSentenceBuffer = "";
     reasoningLog.scrollTop = reasoningLog.scrollHeight;
+  }
+
+  function appendEngineDebug(text) {
+    if (!engineLog || !text) return;
+    const block = document.createElement("pre");
+    block.className = "reasoning-entry";
+    block.textContent = text;
+    engineLog.appendChild(block);
+    engineLog.scrollTop = engineLog.scrollHeight;
+  }
+
+  if (inputSectionToggleBtn) {
+    inputSectionToggleBtn.addEventListener("click", () => {
+      setInputSectionCollapsed(!inputSectionCollapsed);
+    });
+    // Ensure initial state matches the DOM.
+    setInputSectionCollapsed(false);
   }
 
   function appendReasoningChunk(text) {
@@ -306,7 +540,7 @@
         personalitySelect.appendChild(opt);
       }
 
-      if (list.length > 0) {
+      if (list.length > 0 && SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
         addMessage(
           "system",
           "Loaded Rodent personalities. Select one to adjust the coach's tone."
@@ -314,10 +548,12 @@
       }
     } catch (err) {
       console.error("Failed to load personalities:", err);
-      addMessage(
-        "system",
-        "Could not load Rodent personalities; using default coach tone."
-      );
+      if (SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
+        addMessage(
+          "system",
+          "Could not load Rodent personalities; using default coach tone."
+        );
+      }
     }
   }
 
@@ -330,7 +566,9 @@
       reader.onload = () => {
         currentPgnText = String(reader.result || "");
         pgnPreview.value = currentPgnText.slice(0, 4000);
-        addMessage("system", `Loaded PGN file: ${file.name}`);
+        if (SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
+          addMessage("system", `Loaded PGN file: ${file.name}`);
+        }
         updatePgnBoardFromPgn(currentPgnText);
       };
       reader.onerror = () => {
@@ -359,15 +597,36 @@
   bindPgnNavButton(pgnNextBtn, (idx, len) => Math.min(len - 1, idx + 1));
   bindPgnNavButton(pgnLastBtn, (idx, len) => len - 1);
 
+  // Keep the last-move arrow aligned with the board on window resize.
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", () => {
+      if (
+        !Array.isArray(currentPgnPositions) ||
+        currentPgnPositions.length === 0
+      ) {
+        clearLastMoveArrow();
+        return;
+      }
+      const node = currentPgnPositions[currentPgnIndex] || null;
+      if (node && node.lastMove) {
+        drawLastMoveArrow(node.lastMove);
+      } else {
+        clearLastMoveArrow();
+      }
+    });
+  }
+
   if (personalitySelect) {
     personalitySelect.addEventListener("change", () => {
       const value = personalitySelect.value;
-      if (!value) {
-        addMessage("system", "Using default coach personality.");
-      } else {
-        const label =
-          personalitySelect.options[personalitySelect.selectedIndex].textContent;
-        addMessage("system", `Using coach personality: ${label}`);
+      if (SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
+        if (!value) {
+          addMessage("system", "Using default coach personality.");
+        } else {
+          const label =
+            personalitySelect.options[personalitySelect.selectedIndex].textContent;
+          addMessage("system", `Using coach personality: ${label}`);
+        }
       }
     });
   }
@@ -375,7 +634,41 @@
   if (reasoningSelect) {
     reasoningSelect.addEventListener("change", () => {
       const value = reasoningSelect.value || "none";
-      addMessage("system", `Reasoning effort: ${value}`);
+      if (SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
+        addMessage("system", `Reasoning effort: ${value}`);
+      }
+    });
+  }
+
+  if (llmSourceSelect && llmLanRow) {
+    llmSourceSelect.addEventListener("change", () => {
+      const value = llmSourceSelect.value || "local";
+      if (value === "lan") {
+        llmLanRow.classList.remove("llm-lan-row--hidden");
+      } else {
+        llmLanRow.classList.add("llm-lan-row--hidden");
+      }
+
+      let label = "";
+      if (value === "local") {
+        label = "LLM source: Local (localhost / default config).";
+      } else if (value === "lan") {
+        label = "LLM source: LAN (custom IP/port).";
+      } else if (value === "remote") {
+        label = "LLM source: Remote (OpenRouter).";
+      }
+      if (label && SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
+        addMessage("system", label);
+      }
+
+      if (remoteFallbackRow && remoteFallbackToggle) {
+        // Remote fallback is only meaningful when using Local or LAN.
+        const enableFallback = value === "local" || value === "lan";
+        remoteFallbackToggle.disabled = !enableFallback;
+        if (!enableFallback) {
+          remoteFallbackToggle.checked = false;
+        }
+      }
     });
   }
 
@@ -401,6 +694,9 @@
     if (reasoningLog) {
       reasoningLog.textContent = "";
     }
+    if (engineLog) {
+      engineLog.textContent = "";
+    }
     currentReasoningBlock = null;
     reasoningSentenceBuffer = "";
 
@@ -418,18 +714,72 @@
         ? reasoningSelect.value
         : "none";
 
+    const selectedLlmSource =
+      llmSourceSelect && llmSourceSelect.value
+        ? llmSourceSelect.value
+        : "local";
+
+    const remoteFallbackEnabled =
+      remoteFallbackToggle && !remoteFallbackToggle.disabled
+        ? !!remoteFallbackToggle.checked
+        : false;
+
+    const lanHost =
+      llmLanHostInput && llmLanHostInput.value
+        ? llmLanHostInput.value.trim()
+        : "";
+    const lanPort =
+      llmLanPortInput && llmLanPortInput.value
+        ? llmLanPortInput.value.trim()
+        : "";
+
+    const selectedPlayerColor =
+      playerColorSelect && playerColorSelect.value
+        ? playerColorSelect.value
+        : "white";
+
+    const selectedCommentTarget =
+      commentTargetSelect && commentTargetSelect.value
+        ? commentTargetSelect.value
+        : "player";
+
     try {
-      const response = await fetch("/api/chat/stream", {
+      const tauntModeOn = !!(useTauntMode && useTauntMode.checked);
+
+      const endpoint = tauntModeOn ? "/api/taunt/stream" : "/api/chat/stream";
+
+      const payload = tauntModeOn
+        ? {
+            pgnText: currentPgnText,
+            tauntTargetSide: "player",
+            playerColor: selectedPlayerColor,
+            characterId: selectedPersonality,
+            reasoningEffort: selectedReasoning,
+            playerMessage: question,
+            llmSource: selectedLlmSource,
+            lanHost,
+            lanPort,
+            remoteFallback: remoteFallbackEnabled,
+          }
+        : {
+            pgnText: currentPgnText,
+            message: question,
+            personalityId: selectedPersonality,
+            playerColor: selectedPlayerColor,
+            commentTarget: selectedCommentTarget,
+            reasoningEffort: selectedReasoning,
+            llmSource: selectedLlmSource,
+            lanHost,
+            lanPort,
+            remoteFallback: remoteFallbackEnabled,
+          };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          pgnText: currentPgnText,
-          message: question,
-          personalityId: selectedPersonality,
-          reasoningEffort: selectedReasoning,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok || !response.body) {
@@ -492,6 +842,10 @@
             if (evt.text && typeof evt.text === "string") {
               console.debug("Coach reasoning:", evt.text);
               appendReasoningChunk(evt.text);
+            }
+          } else if (evt.type === "engine_debug") {
+            if (evt.text && typeof evt.text === "string") {
+              appendEngineDebug(evt.text);
             }
           } else if (evt.type === "error") {
             const msg = evt.message || "Unknown streaming error.";
