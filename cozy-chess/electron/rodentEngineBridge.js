@@ -48,17 +48,28 @@ function findEngineCommand() {
 
   const candidates = process.platform === "win32" ? candidatesWin : candidatesUnix;
 
-  for (const name of candidates) {
-    const full = path.join(ROOT, name);
-    if (fs.existsSync(full)) {
-      return full;
+  // In packaged builds, ROOT will usually be the Electron resources directory
+  // (where PizzaRAT.exe is copied). In dev, ROOT is the cozy-chess folder, while
+  // the engine binaries may live one level up in the monorepo root. Check both.
+  const searchRoots = [ROOT];
+  const parentRoot = path.resolve(ROOT, "..");
+  if (!searchRoots.includes(parentRoot)) {
+    searchRoots.push(parentRoot);
+  }
+
+  for (const base of searchRoots) {
+    for (const name of candidates) {
+      const full = path.join(base, name);
+      if (fs.existsSync(full)) {
+        return full;
+      }
     }
   }
 
   throw new Error(
     `Could not find Rodent engine executable. Expected one of: ${candidates.join(
       ", "
-    )} in ${ROOT}`
+    )} in search roots: ${searchRoots.join(", ")}`
   );
 }
 
@@ -102,11 +113,12 @@ function extractBestmove(text) {
 
 async function runEngineMove({ fen, sideToMove, targetElo, setoptionScript }) {
   const engineCmd = findEngineCommand();
+  const engineDir = path.dirname(engineCmd);
   const config = pickEngineConfig(targetElo);
 
   return new Promise((resolve, reject) => {
     const proc = childProcess.spawn(engineCmd, [], {
-      cwd: ROOT,
+      cwd: engineDir,
       stdio: ["pipe", "pipe", "inherit"],
       // On Windows, prevent a console/cmd window from flashing when the engine runs.
       windowsHide: true

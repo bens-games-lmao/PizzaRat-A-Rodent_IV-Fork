@@ -45,12 +45,15 @@ export const RadioWidget: React.FC = () => {
       : 0
   );
   const [playerReady, setPlayerReady] = useState(false);
+   const [isPlaying, setIsPlaying] = useState(false);
+   const [playerError, setPlayerError] = useState<string | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<any | null>(null);
 
   // Load the YouTube IFrame API and create the player once.
   useEffect(() => {
     let isCancelled = false;
+    let timeoutId: number | undefined;
 
     const createPlayer = () => {
       if (
@@ -78,6 +81,7 @@ export const RadioWidget: React.FC = () => {
           onReady: () => {
             if (!isCancelled) {
               setPlayerReady(true);
+              setPlayerError(null);
             }
           },
           onStateChange: (event: any) => {
@@ -86,6 +90,24 @@ export const RadioWidget: React.FC = () => {
             }
             if (event.data === YT.PlayerState.ENDED) {
               setCurrentIndex((prev) => getRandomTrackIndex(prev));
+              setIsPlaying(false);
+            } else if (event.data === YT.PlayerState.PLAYING) {
+              setIsPlaying(true);
+            } else if (
+              event.data === YT.PlayerState.PAUSED ||
+              event.data === YT.PlayerState.BUFFERING ||
+              event.data === YT.PlayerState.CUED
+            ) {
+              setIsPlaying(false);
+            }
+          },
+          onError: (event: any) => {
+            // eslint-disable-next-line no-console
+            console.error("YouTube player error:", event);
+            if (!isCancelled) {
+              setPlayerError("Radio is unavailable (YouTube blocked or offline).");
+              setPlayerReady(false);
+              setIsPlaying(false);
             }
           }
         }
@@ -108,8 +130,18 @@ export const RadioWidget: React.FC = () => {
       }
     }
 
+    // If the API never calls back, surface a helpful error instead of silently failing.
+    timeoutId = window.setTimeout(() => {
+      if (!isCancelled && !playerRef.current) {
+        setPlayerError("Radio failed to initialize (YouTube API did not load).");
+      }
+    }, 8000);
+
     return () => {
       isCancelled = true;
+      if (typeof timeoutId === "number") {
+        window.clearTimeout(timeoutId);
+      }
       if (playerRef.current) {
         playerRef.current.destroy();
         playerRef.current = null;
@@ -127,8 +159,42 @@ export const RadioWidget: React.FC = () => {
     const nextTrack = RADIO_TRACKS[currentIndex];
     if (nextTrack) {
       player.loadVideoById(nextTrack.id);
+      setIsPlaying(true);
     }
   }, [currentIndex, playerReady]);
+
+  const handleTogglePlay = () => {
+    const player = playerRef.current;
+    if (!player || !playerReady) {
+      return;
+    }
+
+    const YT = (window as any).YT;
+    if (!YT || !YT.PlayerState || typeof player.getPlayerState !== "function") {
+      // Fallback: just try to play.
+      if (!isPlaying && typeof player.playVideo === "function") {
+        player.playVideo();
+        setIsPlaying(true);
+      } else if (isPlaying && typeof player.pauseVideo === "function") {
+        player.pauseVideo();
+        setIsPlaying(false);
+      }
+      return;
+    }
+
+    const state = player.getPlayerState();
+    if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
+      if (typeof player.pauseVideo === "function") {
+        player.pauseVideo();
+        setIsPlaying(false);
+      }
+    } else {
+      if (typeof player.playVideo === "function") {
+        player.playVideo();
+        setIsPlaying(true);
+      }
+    }
+  };
 
   const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
@@ -146,7 +212,6 @@ export const RadioWidget: React.FC = () => {
 
   return (
     <section className="cozy-radio-card">
-    
       <div className="cozy-radio-row">
         <div className="cozy-radio-station">
           <label className="cozy-label">
@@ -172,6 +237,14 @@ export const RadioWidget: React.FC = () => {
         >
           Next
         </button>
+        <button
+          type="button"
+          className="cozy-btn secondary"
+          onClick={handleTogglePlay}
+          disabled={!playerReady || !!playerError}
+        >
+          {isPlaying ? "Pause" : "Play"}
+        </button>
       </div>
 
       {/* Hidden YouTube player – audio only */}
@@ -188,16 +261,16 @@ export const RadioWidget: React.FC = () => {
       />
 
       <div className="cozy-radio-meta">
-        {currentTrack ? (
-          <>
-            {" "}
-            <span>
-              {currentTrack.label}
-            </span>{" "}
-          </>
-        ) : (
-          "Loading radio…"
-        )}
+        {playerError
+          ? playerError
+          : currentTrack
+          ? (
+              <span>
+                {isPlaying ? "Now playing: " : "Ready: "}
+                {currentTrack.label}
+              </span>
+            )
+          : "Loading radio…"}
       </div>
     </section>
   );

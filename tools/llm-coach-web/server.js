@@ -10,12 +10,7 @@ const {
   describeTauntForLlm,
   buildTauntDescriptorFromEngine,
 } = require("./tauntDescriptor");
-const {
-  completeCoachReply,
-  completeTaunt,
-  streamCoachReply,
-  streamTaunt,
-} = require("./llmGateway");
+const { completeTaunt, streamTaunt } = require("./llmGateway");
 
 const app = express();
 const port = process.env.PORT || 4100;
@@ -47,13 +42,8 @@ function loadPromptText(filename) {
   }
 }
 
-// Coach/chat prompts
-const systemPromptOverride = loadPromptText("coach-system.txt");
-const fallbackUserPromptOverride = loadPromptText("coach-fallback.txt");
-
 // Taunt prompts
 const tauntSystemPromptOverride = loadPromptText("taunt-system.txt");
-const tauntFallbackPromptOverride = loadPromptText("taunt-fallback.txt");
 
 function safeChessBool(chess, methodName) {
   const fn =
@@ -385,22 +375,19 @@ async function loadCharacterProfile(id) {
 function buildPersonalityPrompt(profile) {
   if (!profile) return "";
 
-  const lines = [];
   const id = profile.id || "Unknown";
   const description = profile.description || "";
   const strength = profile.strength || {};
   const taunts = profile.taunts || {};
 
-  lines.push(`You are role-playing the Rodent IV character "${id}".`);
+  let text = `You are role-playing the Rodent IV character "${id}".`;
 
   if (description) {
-    lines.push(`Character description: ${description}`);
+    text += `\nCharacter description: ${description}`;
   }
 
   if (typeof strength.targetElo === "number") {
-    lines.push(
-      `Your approximate playing strength is around ${strength.targetElo} Elo.`
-    );
+    text += `\nYour approximate playing strength is around ${strength.targetElo} Elo.`;
   }
 
   let tone = "neutral, instructive, and encouraging";
@@ -417,15 +404,12 @@ function buildPersonalityPrompt(profile) {
     }
   }
 
-  lines.push(
-    `Your coaching tone should be ${tone}. Do not use profanity, slurs, or explicit content, and keep all comments focused on chess.`
-  );
+  text += `\nYour coaching tone should be ${tone}. Do not use profanity, slurs, or explicit content, and keep all comments focused on chess.`;
 
-  lines.push(
-    "You are not a chess engine and you must never calculate or choose moves yourself. You only rephrase and explain facts that are explicitly present in the ENGINE_STATE block."
-  );
+  text +=
+    "\nYou are not a chess engine and you must never calculate or choose moves yourself. You only rephrase and explain facts that are explicitly present in the ENGINE_STATE block.";
 
-  return lines.join("\n");
+  return text;
 }
 
 app.use(cors());
@@ -766,32 +750,29 @@ function buildEngineStateBlock(engineState) {
   const hasNumericEval = Number.isFinite(centipawnEval);
   const cpEval = hasNumericEval ? centipawnEval : 0;
 
-  const lines = [];
-  lines.push("[ENGINE_STATE]");
-  lines.push(`Side to move: ${safeSideToMove}`);
-  lines.push(`Current FEN: ${fen}`);
+  let text = "[ENGINE_STATE]\n";
+  text += `Side to move: ${safeSideToMove}\n`;
+  text += `Current FEN: ${fen}\n`;
   if (hasNumericEval) {
-    lines.push(`Evaluation (centipawns for side to move): ${cpEval}`);
+    text += `Evaluation (centipawns for side to move): ${cpEval}\n`;
   } else {
-    lines.push(
-      "Evaluation (centipawns for side to move): not provided (rely on Game status and engine comments above instead)."
-    );
+    text +=
+      "Evaluation (centipawns for side to move): not provided (rely on Game status and engine comments above instead).\n";
   }
 
   const trimmedComment =
     typeof evalComment === "string" ? evalComment.trim() : "";
   if (trimmedComment.length > 0) {
-    lines.push(`Evaluation comment: ${trimmedComment}`);
+    text += `Evaluation comment: ${trimmedComment}\n`;
   } else {
-    lines.push(
-      "Evaluation comment: 0.00 (engine eval not attached; this is a structural explanation only)."
-    );
+    text +=
+      "Evaluation comment: 0.00 (engine eval not attached; this is a structural explanation only).\n";
   }
 
   const trimmedStatus =
     typeof gameStatus === "string" ? gameStatus.trim() : "";
   if (trimmedStatus.length > 0) {
-    lines.push(`Game status: ${trimmedStatus}`);
+    text += `Game status: ${trimmedStatus}\n`;
   }
 
   const legalMovesList = Array.isArray(legalMovesSan)
@@ -800,28 +781,28 @@ function buildEngineStateBlock(engineState) {
         .filter((m) => m.length > 0)
     : [];
   if (legalMovesList.length > 0) {
-    lines.push("");
-    lines.push("Legal moves for side to move (SAN):");
-    lines.push(legalMovesList.join(" "));
+    text += "\n";
+    text += "Legal moves for side to move (SAN):\n";
+    text += `${legalMovesList.join(" ")}\n`;
   }
 
   const trimmedPlacement =
     typeof piecePlacement === "string" ? piecePlacement.trim() : "";
   if (trimmedPlacement.length > 0) {
-    lines.push("");
-    lines.push(trimmedPlacement);
+    text += "\n";
+    text += `${trimmedPlacement}\n`;
   }
 
   if (moveHistory && moveHistory.trim().length > 0) {
-    lines.push("");
-    lines.push("Recent moves:");
-    lines.push(moveHistory.trim());
+    text += "\n";
+    text += "Recent moves:\n";
+    text += `${moveHistory.trim()}\n`;
   }
 
   const hasTopLines = Array.isArray(topLines) && topLines.length > 0;
   if (hasTopLines) {
-    lines.push("");
-    lines.push("Top lines:");
+    text += "\n";
+    text += "Top lines:\n";
 
     for (let i = 0; i < topLines.length; i += 1) {
       const line = topLines[i] || {};
@@ -841,12 +822,12 @@ function buildEngineStateBlock(engineState) {
         row += ` (depth ${line.depth})`;
       }
 
-      lines.push(row);
+      text += `${row}\n`;
     }
   }
 
-  lines.push("[END_ENGINE_STATE]");
-  return lines.join("\n");
+  text += "[END_ENGINE_STATE]";
+  return text;
 }
 
 function centipawnsForSide(engineState, sideLabel) {
@@ -875,7 +856,29 @@ function centipawnsForSide(engineState, sideLabel) {
   return -cp;
 }
 
-function classifyMoveQuality(deltaCp) {
+function parseMateInfoFromEvalComment(evalComment) {
+  if (!evalComment || typeof evalComment !== "string") return null;
+  const match = evalComment.match(/mate in\s+(\d+)\s+for\s+([A-Za-z]+)/i);
+  if (!match) return null;
+
+  const distance = parseInt(match[1], 10);
+  if (!Number.isFinite(distance)) return null;
+
+  const rawSide = match[2].trim();
+  const lower = rawSide.toLowerCase();
+  let winner;
+  if (lower === "white") {
+    winner = "White";
+  } else if (lower === "black") {
+    winner = "Black";
+  } else {
+    winner = rawSide;
+  }
+
+  return { distance, winner };
+}
+
+function classifyMoveQuality(deltaCp, context = {}) {
   if (!Number.isFinite(deltaCp)) {
     return {
       label: "unknown",
@@ -907,9 +910,99 @@ function classifyMoveQuality(deltaCp) {
   const direction = pawns >= 0 ? "improved" : "worsened";
   const absText = absPawns.toFixed(2);
 
+  let description;
+  if (absPawns < 0.05) {
+    // Essentially no numeric change at all – call this out explicitly instead
+    // of pretending the evaluation "improved" by 0.00.
+    description = `From the engine's perspective for that side, this move left the evaluation essentially unchanged (about ${absText} pawns, centipawn delta: ${deltaCp}).`;
+  } else {
+    description = `From the engine's perspective for that side, this move ${direction} the evaluation by about ${absText} pawns (centipawn delta: ${deltaCp}).`;
+  }
+
+  const {
+    beforeState,
+    afterState,
+    moveSideLabel,
+    beforeForSide,
+    afterForSide,
+  } = context || {};
+
+  const moveSide =
+    moveSideLabel === "Black"
+      ? "Black"
+      : moveSideLabel === "White"
+      ? "White"
+      : null;
+
+  // Optional mate-aware refinement: if the engine already sees (or newly
+  // discovers) a forced mate, centipawn deltas become meaningless. In those
+  // cases, upgrade clearly winning mating moves to "brilliant" and explain
+  // them in terms of mate distance instead of 0.00 pawn swings.
+  if (beforeState && afterState && moveSide) {
+    const beforeMate = parseMateInfoFromEvalComment(beforeState.evalComment);
+    const afterMate = parseMateInfoFromEvalComment(afterState.evalComment);
+
+    if (beforeMate || afterMate) {
+      const beforeWinner = beforeMate ? beforeMate.winner : null;
+      const afterWinner = afterMate ? afterMate.winner : null;
+
+      const beforeCpForSide =
+        Number.isFinite(beforeForSide) && beforeForSide !== null
+          ? beforeForSide
+          : null;
+      const afterCpForSide =
+        Number.isFinite(afterForSide) && afterForSide !== null
+          ? afterForSide
+          : null;
+
+      // Case 1: the mover is winning by force before and after, and this move
+      // tightens the mate (e.g., mate in 3 → mate in 2). Treat this as a
+      // brilliancy even if deltaCp is 0 in centipawn space.
+      if (
+        beforeMate &&
+        afterMate &&
+        beforeWinner === moveSide &&
+        afterWinner === moveSide &&
+        beforeCpForSide !== null &&
+        afterCpForSide !== null &&
+        Math.abs(beforeCpForSide) >= 2500 &&
+        Math.abs(afterCpForSide) >= 2500 &&
+        afterMate.distance < beforeMate.distance
+      ) {
+        label = "brilliant";
+        const from = beforeMate.distance;
+        const to = afterMate.distance;
+        const cpPawns = (deltaCp / 100).toFixed(2);
+        description = `From the engine's perspective for ${moveSide}, this move tightened an already winning mating attack from mate in ${from} to mate in ${to}. The position was winning before and after, so the raw centipawn delta (~${cpPawns} pawns) is not meaningful here.`;
+      } else if (
+        // Case 2: this move *creates* a forced mate for the mover where none
+        // existed before. Also treat this as a brilliancy.
+        afterMate &&
+        afterWinner === moveSide &&
+        (!beforeMate || beforeWinner !== moveSide)
+      ) {
+        label = "brilliant";
+        const to = afterMate.distance;
+        const cpPawns = (deltaCp / 100).toFixed(2);
+        description = `From the engine's perspective for ${moveSide}, this move created a forced mate in ${to} where there was no such win before. Even if the centipawn delta (~${cpPawns} pawns) is small, it is a decisive winning blow.`;
+      } else if (
+        // Case 3: the mover *throws away* a forced mate and hands one to the
+        // opponent. This is worse than an ordinary blunder.
+        beforeMate &&
+        beforeWinner === moveSide &&
+        afterMate &&
+        afterWinner &&
+        afterWinner !== moveSide
+      ) {
+        label = "blunder";
+        description = `Before this move, the engine saw a forced mate for ${moveSide}; afterwards it saw a winning mate for the opponent. This is an extreme blunder regardless of the raw centipawn delta (${deltaCp}).`;
+      }
+    }
+  }
+
   return {
     label,
-    description: `From the engine's perspective for that side, this move ${direction} the evaluation by about ${absText} pawns (centipawn delta: ${deltaCp}).`,
+    description,
   };
 }
 
@@ -1102,7 +1195,13 @@ async function buildCoachEngineStateBlock({
         Number.isFinite(afterForSide)
       ) {
         const delta = afterForSide - beforeForSide;
-        const quality = classifyMoveQuality(delta);
+        const quality = classifyMoveQuality(delta, {
+          beforeState,
+          afterState,
+          moveSideLabel: meta.targetSide,
+          beforeForSide,
+          afterForSide,
+        });
         qualityLine = `Engine move-quality label for this move (for ${meta.targetSide}): ${quality.label}. ${quality.description}`;
       }
     }
@@ -1232,25 +1331,8 @@ function buildTauntUserContent(tauntDescriptor, extraUserText) {
   const parts = [];
 
   const descriptionBlock = describeTauntForLlm(tauntDescriptor);
-  parts.push("Here is the taunt idea to base your reply on:");
-  parts.push("");
   parts.push(descriptionBlock);
   parts.push("");
-
-  if (
-    tauntFallbackPromptOverride &&
-    typeof tauntFallbackPromptOverride === "string" &&
-    tauntFallbackPromptOverride.trim().length > 0
-  ) {
-    parts.push(tauntFallbackPromptOverride.trim());
-  } else {
-    parts.push(
-      "Using the taunt idea and persona, write one short taunt sentence (5–25 words) directed at the player."
-    );
-    parts.push(
-      "Highlight the described theme in playful language that fits the character, and use plain language instead of technical chess notation."
-    );
-  }
 
   if (extraUserText && extraUserText.trim().length > 0) {
     parts.push("");
@@ -1291,10 +1373,11 @@ async function buildTauntDescriptorFromPgn({
   const targetSide = tauntTargetSide || "player";
 
   if (!pgnText || typeof pgnText !== "string") {
-    const engineState = null;
-    return buildTauntDescriptorFromEngine(engineState, {
-      targetSide,
-    });
+    const error = new Error(
+      "pgnText (string) is required to build a taunt descriptor from PGN."
+    );
+    error.status = 400;
+    throw error;
   }
 
   let chess;
@@ -1433,7 +1516,14 @@ async function buildTauntDescriptorFromPgn({
 
     const descriptorBase = {
       ...baseDescriptor,
-      piece: inferredPiece || baseDescriptor.piece,
+      // For general material/positional events, let the specific move piece
+      // take over. For king-safety / conversion themes, keep the king focus.
+      piece:
+        inferredPiece &&
+        baseDescriptor.eventType !== "KingSafety" &&
+        baseDescriptor.eventType !== "ConversionGloat"
+          ? inferredPiece
+          : baseDescriptor.piece,
       moveSide: moveSideLabel,
       moveNumber:
         Number.isInteger(meta.moveNumber) && meta.moveNumber > 0
@@ -1458,10 +1548,34 @@ async function buildTauntDescriptorFromPgn({
     }
 
     const deltaCp = afterForMover - beforeForMover;
-    const quality = classifyMoveQuality(deltaCp);
+    const quality = classifyMoveQuality(deltaCp, {
+      beforeState,
+      afterState,
+      moveSideLabel,
+      beforeForSide: beforeForMover,
+      afterForSide: afterForMover,
+    });
+
+    let { eventType, severity, piece } = descriptorBase;
+
+    // If the engine calls this move a brilliancy based on a forced mate,
+    // prefer a "conversion" style theme instead of a generic material swing.
+    if (quality.label === "brilliant") {
+      const afterMate = parseMateInfoFromEvalComment(afterState.evalComment);
+      if (afterMate && afterMate.winner === moveSideLabel) {
+        eventType = "ConversionGloat";
+        severity = "severe";
+        // `piece` is left as inferred from SAN (typically the moved piece,
+        // e.g. queen for Qg6+), so the LLM can talk about how that piece
+        // finishes the attack against the enemy king.
+      }
+    }
 
     return {
       ...descriptorBase,
+      eventType,
+      severity,
+      piece,
       moveQualityLabel: quality.label,
       moveQualityDetail: quality.description,
       moveDeltaCentipawns: deltaCp,

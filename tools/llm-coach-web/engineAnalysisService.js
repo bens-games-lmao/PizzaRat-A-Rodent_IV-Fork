@@ -179,37 +179,74 @@ function decodeEngineOutput(buffer) {
 }
 
 /**
- * Extract a single principal variation and evaluation from raw UCI output.
+ * Extract a single principal variation, evaluation, and (optionally) a Rodent
+ * taunt descriptor from raw UCI output.
  *
- * We currently:
- *  - take the last "info ... score ..." line as the primary line
- *  - support both "score cp N" and "score mate N"
- *  - map mate scores to a very large centipawn value and put the human-readable
- *    "mate in N" string into evalComment so the LLM can see it explicitly.
+ * If we cannot find a numeric score ("info ... score cp/mate ...") in the
+ * engine output, or the last score line cannot be parsed, this function throws
+ * instead of silently fabricating a stub evaluation.
  *
  * @param {string} text
  * @param {string} sideToMove Human-readable side label ("White" | "Black")
  * @param {{ maxTopLines: number, maxLinePlies: number }} config
- * @returns {{ centipawnEval: number | null, evalComment: string, topLines: Array<{ move: string, centipawnEval: number, line: string, depth?: number }> }}
+ * @returns {{
+ *   centipawnEval: number,
+ *   evalComment: string,
+ *   topLines: Array<{ move: string, centipawnEval: number, line: string, depth?: number }>,
+ *   tauntEvent?: string | null,
+ *   tauntSeverity?: string | null,
+ *   tauntText?: string | null
+ * }}
  */
 function extractEngineEvalFromOutput(text, sideToMove, config) {
   const lines = String(text || "").split(/\r?\n/);
   let lastScoreLine = null;
+  let lastTauntLine = null;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
-    if (!line.startsWith("info")) continue;
-    if (line.includes("score")) {
-      lastScoreLine = line;
+    if (!line) continue;
+
+    if (line.startsWith("info")) {
+      if (line.includes("score")) {
+        lastScoreLine = line;
+      }
+      if (line.includes("taunt_llm|")) {
+        lastTauntLine = line;
+      }
     }
   }
 
   if (!lastScoreLine) {
-    return {
-      centipawnEval: null,
-      evalComment: "",
-      topLines: [],
-    };
+    throw new Error(
+      "Engine output did not contain any 'info ... score' line; cannot build ENGINE_STATE."
+    );
+  }
+
+  let tauntEvent = null;
+  let tauntSeverity = null;
+  let tauntText = null;
+
+  if (lastTauntLine) {
+    // Expected format from taunt.cpp:
+    //   info string taunt_llm|EventName|severity|text...
+    const idx = lastTauntLine.indexOf("taunt_llm|");
+    if (idx >= 0) {
+      const payload = lastTauntLine.slice(idx + "taunt_llm|".length);
+      const parts = payload.split("|");
+      if (parts.length >= 1) {
+        const ev = parts[0].trim();
+        if (ev) tauntEvent = ev;
+      }
+      if (parts.length >= 2) {
+        const sev = parts[1].trim();
+        if (sev) tauntSeverity = sev;
+      }
+      if (parts.length >= 3) {
+        const rest = parts.slice(2).join("|").trim();
+        if (rest) tauntText = rest;
+      }
+    }
   }
 
   const tokens = lastScoreLine.split(/\s+/);
@@ -247,18 +284,36 @@ function extractEngineEvalFromOutput(text, sideToMove, config) {
   let centipawnEval = null;
   let evalComment = "";
 
+  if (mate === null && cp === null) {
+    throw new Error(
+      "Could not parse numeric score from engine 'info ... score' output."
+    );
+  }
+
   if (mate !== null) {
     const ply = Math.abs(mate);
-    const side =
-      sideToMove && typeof sideToMove === "string"
-        ? sideToMove
-        : "the side to move";
 
+    // Work out which side is actually winning according to the mate score.
     // Positive mate means a win for the side to move, negative for the
-    // opponent; map to a very large centipawn value with the same sign.
+    // opponent; map to a very large centipawn value with the same sign and
+    // report the *winner* in evalComment.
+    let winnerSide = "the side to move";
+    if (sideToMove && typeof sideToMove === "string") {
+      const label = sideToMove.trim();
+      if (label === "White" || label === "Black") {
+        if (mate > 0) {
+          winnerSide = label;
+        } else if (mate < 0) {
+          winnerSide = label === "White" ? "Black" : "White";
+        }
+      } else if (label) {
+        winnerSide = label;
+      }
+    }
+
     const sign = mate > 0 ? 1 : -1;
     centipawnEval = sign * 32000;
-    evalComment = `Mate in ${ply} for ${side}.`;
+    evalComment = `Mate in ${ply} for ${winnerSide}.`;
   } else if (cp !== null) {
     centipawnEval = cp;
   }
@@ -280,6 +335,9 @@ function extractEngineEvalFromOutput(text, sideToMove, config) {
     centipawnEval,
     evalComment,
     topLines: capped,
+    tauntEvent,
+    tauntSeverity,
+    tauntText,
   };
 }
 
@@ -304,6 +362,9 @@ function extractEngineEvalFromOutput(text, sideToMove, config) {
 async function runEngineAnalysis({ fen, sideToMove, config }) {
   const engineCmd = findEngineCommand();
 
+  // Temporary debug logging to verify which engine binary is being used.
+  console.log("Eval engine command:", engineCmd);
+
   return new Promise((resolve, reject) => {
     const proc = childProcess.spawn(engineCmd, [], {
       cwd: ROOT,
@@ -311,9 +372,27 @@ async function runEngineAnalysis({ fen, sideToMove, config }) {
     });
 
     const chunks = [];
+    let sawBestmove = false;
 
     proc.stdout.on("data", (chunk) => {
       chunks.push(chunk);
+
+      // Try to detect when the engine has finished its search so we can send
+      // "quit" *after* it has had a chance to emit full analysis (info/score).
+      try {
+        const textChunk = decodeEngineOutput(chunk);
+        if (!sawBestmove && /\bbestmove\b/.test(textChunk)) {
+          sawBestmove = true;
+          try {
+            proc.stdin.write("quit\n");
+          } catch (_) {
+            // If stdin is already closed, let the exit handler surface the error.
+          }
+        }
+      } catch (_) {
+        // If incremental decode fails for some reason, we still keep the raw
+        // bytes in `chunks` and will decode everything on exit.
+      }
     });
 
     proc.on("error", (err) => {
@@ -324,9 +403,28 @@ async function runEngineAnalysis({ fen, sideToMove, config }) {
       try {
         const buffer = Buffer.concat(chunks);
         const text = decodeEngineOutput(buffer);
-        const { centipawnEval, evalComment, topLines } =
-          extractEngineEvalFromOutput(text, sideToMove, config);
-        resolve({ centipawnEval, evalComment, topLines });
+
+        // Temporary debug logging to inspect raw UCI engine output.
+        console.log("=== Engine raw output ===");
+        console.log(text);
+        console.log("=== End engine raw output ===");
+
+        const {
+          centipawnEval,
+          evalComment,
+          topLines,
+          tauntEvent,
+          tauntSeverity,
+          tauntText,
+        } = extractEngineEvalFromOutput(text, sideToMove, config);
+        resolve({
+          centipawnEval,
+          evalComment,
+          topLines,
+          tauntEvent,
+          tauntSeverity,
+          tauntText,
+        });
       } catch (e) {
         reject(e);
       }
@@ -350,7 +448,6 @@ async function runEngineAnalysis({ fen, sideToMove, config }) {
     send(`position fen ${fen}`);
     const depth = config && Number.isFinite(config.depth) ? config.depth : 12;
     send(`go depth ${depth}`);
-    send("quit");
   });
 }
 
@@ -436,9 +533,9 @@ function capEngineLines(rawLines, config) {
  * Analyze the current position and return an EngineState object suitable
  * for serialization via buildEngineStateBlock.
  *
- * For now, this uses a stubbed engine backend (no real Rodent/Stockfish
- * integration) but *does* enforce Elo-based caps so that wiring in a real
- * engine later will automatically stay within the configured limits.
+ * If the underlying UCI engine fails (missing binary, crashes, invalid
+ * output, etc.), this function throws instead of fabricating a stub
+ * ENGINE_STATE. Callers must treat that as a fatal condition.
  *
  * NOTE: High-level game metadata such as "game over" status and the list
  * of legal moves is computed by the caller (server.js using chess.js) and
@@ -479,45 +576,32 @@ async function analyzePosition({
   let centipawnEval = null;
   let evalComment = "";
   let topLines = [];
+  let tauntEvent = null;
+  let tauntSeverity = null;
+  let tauntText = null;
 
-  try {
-    const engineResult = await runEngineAnalysis({
-      fen,
-      sideToMove,
-      config,
-    });
-    centipawnEval = engineResult.centipawnEval;
-    evalComment = engineResult.evalComment || "";
-    topLines = Array.isArray(engineResult.topLines)
-      ? engineResult.topLines
-      : [];
-  } catch (err) {
-    // If the engine is missing or fails, fall back to the old stub behaviour
-    // so the web UI and LLM prompts keep working.
-    console.warn(
-      "Rodent evaluation failed; falling back to stubbed ENGINE_STATE:",
-      err && err.message ? err.message : err
-    );
-
-    const statusText =
-      typeof gameStatus === "string" ? gameStatus.toLowerCase() : "";
-    const isGameOverStub =
-      statusText.includes("checkmate") ||
-      statusText.includes("stalemate") ||
-      statusText.includes("draw");
-
-    if (isGameOverStub) {
-      evalComment =
-        "Numeric evaluation is not meaningful here: the game is already over according to the Game status above.";
-      centipawnEval = null;
-    } else {
-      centipawnEval = 0;
-      evalComment =
-        "0.00 (no engine evaluation is attached; treat this as a structural explanation only, not a precise score).";
-    }
-
-    topLines = capEngineLines([], config);
-  }
+  const engineResult = await runEngineAnalysis({
+    fen,
+    sideToMove,
+    config,
+  });
+  centipawnEval = engineResult.centipawnEval;
+  evalComment = engineResult.evalComment || "";
+  topLines = Array.isArray(engineResult.topLines)
+    ? engineResult.topLines
+    : [];
+  tauntEvent =
+    typeof engineResult.tauntEvent === "string"
+      ? engineResult.tauntEvent
+      : null;
+  tauntSeverity =
+    typeof engineResult.tauntSeverity === "string"
+      ? engineResult.tauntSeverity
+      : null;
+  tauntText =
+    typeof engineResult.tauntText === "string"
+      ? engineResult.tauntText
+      : null;
 
   return {
     fen,
@@ -529,6 +613,9 @@ async function analyzePosition({
     gameStatus,
     legalMovesSan,
     piecePlacement,
+    tauntEvent,
+    tauntSeverity,
+    tauntText,
   };
 }
 

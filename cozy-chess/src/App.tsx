@@ -25,7 +25,7 @@ type PlayerColor = "white" | "black";
 const BackgroundVideo: React.FC = () => (
   <div className="cozy-bg-video">
     <img
-      src="public/bg.png"
+      src="bg.png"
       alt="Cozy Chess background"
       className="cozy-bg-image"
     />
@@ -106,6 +106,7 @@ export const App: React.FC = () => {
       });
 
       if (!result || !result.bestmove) {
+        setEngineError("Engine did not return a move. Make sure the engine executable is available.");
         setIsEngineThinking(false);
         return;
       }

@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 /**
  * High-level description of what kind of trash talk is appropriate
  * for the current position. This is intentionally small and focused;
@@ -14,9 +17,6 @@
  *   How sharp/serious the taunt should feel.
  * @property {string} [piece]
  *   Optional piece focus (e.g., "king", "queen", "rook").
- * @property {string} [baseLine]
- *   Short, canonical taunt line from the existing Rodent taunt tables,
- *   such as "your king looks exposed here".
  * @property {string} [extraContext]
  *   Optional extra natural-language hints (e.g., "you just hung a rook",
  *   "your flag is about to fall").
@@ -32,14 +32,33 @@
  *   Optional one-line explanation of the move quality from the engine's point of view.
  */
 
-const EventTypeLabels = {
-  KingSafety: "their king looking exposed or unsafe",
-  Blunder: "a recent big mistake or blunder",
-  MaterialSwing: "a big change in material balance",
-  FlagDanger: "time trouble on the clock",
-  ConversionGloat: "converting a clearly winning position",
-  GeneralNeedling: "general needling about their play so far",
-};
+const ROOT = path.resolve(__dirname, "..", "..");
+const PROMPTS_DIR = path.join(ROOT, "prompts");
+
+let gameStateDetailsTemplateCache = null;
+
+function loadGameStateDetailsTemplate() {
+  if (gameStateDetailsTemplateCache !== null) {
+    return gameStateDetailsTemplateCache;
+  }
+
+  try {
+    const filePath = path.join(PROMPTS_DIR, "game-state-details.txt");
+    const text = fs.readFileSync(filePath, "utf8");
+    if (!text || text.trim().length === 0) {
+      throw new Error("prompts/game-state-details.txt is empty.");
+    }
+    gameStateDetailsTemplateCache = text;
+  } catch (err) {
+    throw new Error(
+      `Failed to load game-state details template from prompts/game-state-details.txt: ${
+        err && err.message ? err.message : String(err)
+      }`
+    );
+  }
+
+  return gameStateDetailsTemplateCache;
+}
 
 /**
  * Turn a TauntDescriptor into a compact, human-readable block that
@@ -53,32 +72,25 @@ const EventTypeLabels = {
  */
 function describeTauntForLlm(td) {
   if (!td || typeof td !== "object") {
-    return "[TAUNT_IDEA]\nA light, playful taunt about their last move.\n[END_TAUNT_IDEA]";
+    throw new Error("TauntDescriptor object is required for describeTauntForLlm.");
   }
 
-  const lines = [];
-  lines.push("[TAUNT_IDEA]");
+  const template = loadGameStateDetailsTemplate();
 
-  const eventLabel =
-    (td.eventType && EventTypeLabels[td.eventType]) || td.eventType || "general needling about their play";
+  const eventLabel = td.eventType || "GeneralNeedling";
   const target =
     td.targetSide === "engine"
-      ? "the engine's position"
-      : "the human player's position";
+      ? "engine"
+      : "player";
 
-  lines.push(`Theme: a taunt about ${target}, focused on ${eventLabel}.`);
+  const intensityLine = td.severity ? `severity=${td.severity}` : "";
 
-  if (td.severity) {
-    lines.push(`Intensity: ${td.severity} (treat this as how sharp or bold the tone can be).`);
-  }
-
-  if (td.piece) {
-    lines.push(`Piece focus: their ${td.piece}.`);
-  }
+  const pieceLine = td.piece ? `piece=${td.piece}` : "";
 
   // If we know exactly which move the engine has targeted for this taunt,
   // surface that explicitly so the LLM never has to guess which move is in
   // scope.
+  let moveLine = "";
   if (td.moveSan || td.moveNumber || td.moveSide) {
     const parts = [];
     if (td.moveNumber != null) {
@@ -92,35 +104,39 @@ function describeTauntForLlm(td) {
     }
     const moveLabel =
       parts.length > 0 ? parts.join(" ") : "the specific move selected by the engine";
-    lines.push(`Target move: ${moveLabel}.`);
+    moveLine = `Target move: ${moveLabel}.`;
   }
 
-  if (td.moveQualityLabel) {
-    lines.push(`Engine move-quality label for that move: ${td.moveQualityLabel}.`);
-  }
+  const qualityLabelLine = td.moveQualityLabel
+    ? `Engine move-quality  ${td.moveQualityLabel}.`
+    : "";
 
-  if (td.moveQualityDetail) {
-    lines.push(td.moveQualityDetail);
-  }
+  const qualityDetailLine = td.moveQualityDetail ? td.moveQualityDetail : "";
 
-  if (td.baseLine && typeof td.baseLine === "string") {
-    lines.push(`Base taunt idea: "${td.baseLine.trim()}".`);
-  }
+  const extraContextLine =
+    td.extraContext && typeof td.extraContext === "string"
+      ? `Extra context: ${td.extraContext.trim()}`
+      : "";
 
-  if (td.extraContext && typeof td.extraContext === "string") {
-    lines.push(`Extra context: ${td.extraContext.trim()}`);
-  }
-
-  lines.push("[END_TAUNT_IDEA]");
-  return lines.join("\n");
+  return template
+    .replace("{{TARGET}}", target)
+    .replace("{{EVENT_LABEL}}", eventLabel)
+    .replace("{{INTENSITY_LINE}}", intensityLine)
+    .replace("{{PIECE_LINE}}", pieceLine)
+    .replace("{{MOVE_LINE}}", moveLine)
+    .replace("{{QUALITY_LABEL_LINE}}", qualityLabelLine)
+    .replace("{{QUALITY_DETAIL_LINE}}", qualityDetailLine)
+    .replace("{{EXTRA_CONTEXT_LINE}}", extraContextLine);
 }
 
 /**
- * Placeholder heuristic mapper from a generic engine state into a
- * TauntDescriptor. In the full Rodent integration this logic should
- * live alongside the existing taunt subsystem and use its enums and
- * rudeness knobs; this helper is mainly here to document the mapping
- * shape and enable lightweight web/experimental usage.
+ * Map a generic engine state (as produced by engineAnalysisService/analyzePosition)
+ * into a TauntDescriptor.
+ *
+ * For production Rodent / PizzaRAT usage, this requires that the underlying
+ * engine emit the special "info string taunt_llm|Event|severity|text..."
+ * line; if that is missing or malformed, this function throws instead of
+ * inventing a heuristic taunt.
  *
  * @param {Object} engineState
  * @param {Object} [options]
@@ -131,65 +147,69 @@ function buildTauntDescriptorFromEngine(engineState, options = {}) {
   const targetSide = options.targetSide || "player";
 
   if (!engineState || typeof engineState !== "object") {
-    return {
-      eventType: "GeneralNeedling",
-      targetSide,
-      severity: "mild",
-      baseLine: "Not your finest moment there.",
-    };
+    throw new Error(
+      "EngineState object is required to build a TauntDescriptor from engine output."
+    );
   }
 
-  const gameStatus =
-    typeof engineState.gameStatus === "string"
-      ? engineState.gameStatus.toLowerCase()
+  // First preference: a machine-readable taunt descriptor from Rodent's own
+  // taunt subsystem, if present on the EngineState.
+  const rawEvent =
+    typeof engineState.tauntEvent === "string"
+      ? engineState.tauntEvent.trim()
       : "";
-  const cp = Number.isFinite(engineState.centipawnEval)
-    ? engineState.centipawnEval
-    : 0;
+  const rawSeverity =
+    typeof engineState.tauntSeverity === "string"
+      ? engineState.tauntSeverity.trim().toLowerCase()
+      : "";
+  const rawText =
+    typeof engineState.tauntText === "string"
+      ? engineState.tauntText.trim()
+      : "";
 
-  let eventType = "GeneralNeedling";
-  let severity = "mild";
-  let baseLine = "Not your finest moment there.";
-  let piece = null;
-
-  if (gameStatus.includes("checkmate")) {
-    eventType = "ConversionGloat";
-    severity = "severe";
-    baseLine = "This one is completely over for you.";
-  } else if (gameStatus.includes("stalemate") || gameStatus.includes("draw")) {
-    eventType = "GeneralNeedling";
-    severity = "medium";
-    baseLine = "You barely escaped there.";
-  } else {
-    const absCp = Math.abs(cp);
-    if (absCp >= 400) {
-      eventType = "MaterialSwing";
-      severity = "severe";
-      baseLine = "You just threw away a huge chunk of material.";
-    } else if (absCp >= 200) {
-      eventType = "Blunder";
-      severity = "medium";
-      baseLine = "That move really hurt your position.";
-    } else {
-      eventType = "GeneralNeedling";
-      severity = "mild";
-      baseLine = "You might want to rethink your strategy.";
-    }
+  if (!rawEvent) {
+    throw new Error(
+      "EngineState did not include a tauntEvent from the engine taunt subsystem; cannot build TauntDescriptor."
+    );
   }
 
-  if (engineState.piecePlacement && typeof engineState.piecePlacement === "string") {
-    if (engineState.piecePlacement.toLowerCase().includes("king")) {
-      piece = "king";
-    }
+  // Normalise severity to the expected labels where possible; if Rodent
+  // adds new labels in future, we still pass them through verbatim.
+  let severity = undefined;
+  if (
+    rawSeverity === "mild" ||
+    rawSeverity === "medium" ||
+    rawSeverity === "severe"
+  ) {
+    severity = rawSeverity;
+  } else if (rawSeverity) {
+    severity = rawSeverity;
   }
 
-  return {
-    eventType,
+  const descriptor = {
+    eventType: rawEvent,
     targetSide,
     severity,
-    piece: piece || undefined,
-    baseLine,
   };
+
+  if (rawText) {
+    descriptor.extraContext = rawText;
+  }
+
+  // We can still opportunistically add a simple piece focus hint based on
+  // the coarse piecePlacement summary that the analysis layer already
+  // computes.
+  if (
+    engineState.piecePlacement &&
+    typeof engineState.piecePlacement === "string"
+  ) {
+    const lower = engineState.piecePlacement.toLowerCase();
+    if (lower.includes("king")) {
+      descriptor.piece = "king";
+    }
+  }
+
+  return descriptor;
 }
 
 module.exports = {
