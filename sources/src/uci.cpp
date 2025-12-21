@@ -59,6 +59,21 @@ void UciLoop() {
 
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
+
+    // #region agent log
+    {
+        FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+        if (f) {
+            fprintf(
+                f,
+                "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H0\",\"location\":\"uci.cpp:UciLoop\",\"message\":\"Entering UciLoop\",\"data\":{},\"timestamp\":%lld}\n",
+                (long long)GetMS()
+            );
+            fclose(f);
+        }
+    }
+    // #endregion agent log
+
     p->SetPosition(START_POS);
     Trans.AllocTrans(16);
     for (;;) {

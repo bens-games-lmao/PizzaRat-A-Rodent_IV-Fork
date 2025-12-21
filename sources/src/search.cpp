@@ -237,6 +237,23 @@ void cEngine::Iterate(POS *p, int *pv) {
 
     for (mRootDepth = 1 + offset; mRootDepth <= msSearchDepth; mRootDepth++) {
 
+        // #region agent log
+        {
+            FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+            if (f) {
+                fprintf(
+                    f,
+                    "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H1\",\"location\":\"search.cpp:Iterate:beforeDepth\",\"message\":\"Entering depth iteration\",\"data\":{\"mRootDepth\":%d,\"msSearchDepth\":%d,\"mcThreadId\":%d},\"timestamp\":%lld}\n",
+                    mRootDepth,
+                    msSearchDepth,
+                    mcThreadId,
+                    (long long)GetMS()
+                );
+                fclose(f);
+            }
+        }
+        // #endregion agent log
+
         tDepth[mcThreadId] = mRootDepth;
         depthCounter = 0;
         for (int j = 0; j < Glob.numberOfThreads; j++) {
@@ -267,6 +284,23 @@ void cEngine::Iterate(POS *p, int *pv) {
         } else {
             cur_val = SearchRoot(p, 0, -INF, INF, mRootDepth, pv);
         }
+
+        // #region agent log
+        {
+            FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+            if (f) {
+                fprintf(
+                    f,
+                    "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H2\",\"location\":\"search.cpp:Iterate:afterSearch\",\"message\":\"Finished depth search iteration\",\"data\":{\"mRootDepth\":%d,\"cur_val\":%d,\"abortSearch\":%d},\"timestamp\":%lld}\n",
+                    mRootDepth,
+                    cur_val,
+                    (int)Glob.abortSearch,
+                    (long long)GetMS()
+                );
+                fclose(f);
+            }
+        }
+        // #endregion agent log
 
         if (Glob.abortSearch) {
             break;
@@ -299,6 +333,22 @@ void cEngine::Iterate(POS *p, int *pv) {
             Glob.depthReached = mDpCompleted;
         }
     }
+
+    // #region agent log
+    {
+        FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+        if (f) {
+            fprintf(
+                f,
+                "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H3\",\"location\":\"search.cpp:Iterate:exit\",\"message\":\"Exiting Iterate\",\"data\":{\"mDpCompleted\":%d,\"depthReached\":%d},\"timestamp\":%lld}\n",
+                mDpCompleted,
+                (int)Glob.depthReached,
+                (long long)GetMS()
+            );
+            fclose(f);
+        }
+    }
+    // #endregion agent log
 
     if (!Par.shut_up) Glob.abortSearch = true; // for correct exit from fixed depth search
 }
@@ -373,6 +423,26 @@ int cEngine::SearchRoot(POS *p, int ply, int alpha, int beta, int depth, int *pv
 
     Glob.nodes++;
     Slowdown();
+
+    // #region agent log
+    {
+        FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+        if (f) {
+            fprintf(
+                f,
+                "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H4\",\"location\":\"search.cpp:SearchRoot:entry\",\"message\":\"Enter SearchRoot\",\"data\":{\"ply\":%d,\"alpha\":%d,\"beta\":%d,\"depth\":%d,\"mRootDepth\":%d},\"timestamp\":%lld}\n",
+                ply,
+                alpha,
+                beta,
+                depth,
+                mRootDepth,
+                (long long)GetMS()
+            );
+            fclose(f);
+        }
+    }
+    // #endregion agent log
+
     if (Glob.abortSearch && mRootDepth > 1) return 0;
     if (ply) *pv = 0;
     if (p->IsDraw() && ply) return p->DrawScore();
@@ -405,7 +475,25 @@ int cEngine::SearchRoot(POS *p, int ply, int alpha, int beta, int depth, int *pv
     // SAFEGUARD AGAINST REACHING MAX PLY LIMIT
 
     if (ply >= MAX_PLY - 1) {
-        return Evaluate(p, &e);
+        int evalCap = Evaluate(p, &e);
+
+        // #region agent log
+        {
+            FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+            if (f) {
+                fprintf(
+                    f,
+                    "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H5\",\"location\":\"search.cpp:SearchRoot:maxPly\",\"message\":\"Hit MAX_PLY cap in SearchRoot\",\"data\":{\"ply\":%d,\"eval\":%d},\"timestamp\":%lld}\n",
+                    ply,
+                    evalCap,
+                    (long long)GetMS()
+                );
+                fclose(f);
+            }
+        }
+        // #endregion agent log
+
+        return evalCap;
     }
 
     flagInCheck = p->InCheck();

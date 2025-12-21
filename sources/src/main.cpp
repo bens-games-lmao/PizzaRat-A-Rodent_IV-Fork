@@ -77,6 +77,20 @@ int main() {
 #endif
 
     srand(GetMS());
+
+    // #region agent log
+    {
+        FILE *f = fopen("c:\\Users\\ManacasterBen\\Desktop\\WORKSPACES\\CHESS\\PizzaRAT\\.cursor\\debug.log", "a");
+        if (f) {
+            fprintf(
+                f,
+                "{\"sessionId\":\"debug-session\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H0\",\"location\":\"main.cpp:main\",\"message\":\"Engine main entry\",\"data\":{},\"timestamp\":%lld}\n",
+                (long long)GetMS()
+            );
+            fclose(f);
+        }
+    }
+    // #endregion agent log
     BB.Init();
     cEngine::InitSearch();
     POS::Init();

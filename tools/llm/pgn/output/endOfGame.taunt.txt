@@ -1,0 +1,45 @@
+PGN file: endOfGame.pgn
+Character: WSP_Hustler_1800
+Player color: white
+Reasoning effort: none
+LLM source: lan
+LLM LAN host: 192.168.1.192:1234
+
+
+=== ENGINE DEBUG (descriptor + prompt) ===
+Engine-derived taunt descriptor:
+
+{
+  "eventType": "ConversionGloat",
+  "targetSide": "player",
+  "severity": "severe",
+  "piece": "king",
+  "moveSide": "White",
+  "moveNumber": 18,
+  "moveSan": "Qxf8#",
+  "moveQualityLabel": "blunder",
+  "moveQualityDetail": "Before this move, the engine saw a forced mate for White; afterwards it saw a winning mate for the opponent. This is an extreme blunder regardless of the raw centipawn delta (0).",
+  "moveDeltaCentipawns": 0
+}
+
+User content sent to taunt LLM:
+
+[GAME_STATE_DETAILS]
+target=player
+event=ConversionGloat
+severity=severe
+piece=king
+Target move: move 18 White Qxf8#.
+Engine move-quality  blunder.
+Before this move, the engine saw a forced mate for White; afterwards it saw a winning mate for the opponent. This is an extreme blunder regardless of the raw centipawn delta (0).
+
+[END_GAME_STATE_DETAILS]
+
+
+
+=== TAUNT (streamed) ===
+
+
+"Checkmated into a pawn's regret—now you're just handing Black the keys to your queen's castle!"
+=== ERRORS ===
+(none)

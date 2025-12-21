@@ -1,0 +1,45 @@
+PGN file: vanGeet.pgn
+Character: WSP_Hustler_1800
+Player color: white
+Reasoning effort: none
+LLM source: lan
+LLM LAN host: 192.168.1.192:1234
+
+
+=== ENGINE DEBUG (descriptor + prompt) ===
+Engine-derived taunt descriptor:
+
+{
+  "eventType": "GeneralNeedling",
+  "targetSide": "player",
+  "severity": "mild",
+  "piece": "pawn",
+  "moveSide": "White",
+  "moveNumber": 2,
+  "moveSan": "d4",
+  "moveQualityLabel": "neutral",
+  "moveQualityDetail": "From the engine's perspective for that side, this move left the evaluation essentially unchanged (about 0.03 pawns, centipawn delta: -3).",
+  "moveDeltaCentipawns": -3
+}
+
+User content sent to taunt LLM:
+
+[GAME_STATE_DETAILS]
+target=player
+event=GeneralNeedling
+severity=mild
+piece=pawn
+Target move: move 2 White d4.
+Engine move-quality  neutral.
+From the engine's perspective for that side, this move left the evaluation essentially unchanged (about 0.03 pawns, centipawn delta: -3).
+
+[END_GAME_STATE_DETAILS]
+
+
+
+=== TAUNT (streamed) ===
+
+
+You’re making moves that make my eyes water with boredom. Better consult the engine before your pawn chain turns into an avalanche of missed opportunities.
+=== ERRORS ===
+(none)

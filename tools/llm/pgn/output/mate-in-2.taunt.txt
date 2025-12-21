@@ -1,0 +1,45 @@
+PGN file: mate-in-2.pgn
+Character: WSP_Hustler_1800
+Player color: white
+Reasoning effort: none
+LLM source: lan
+LLM LAN host: 192.168.1.192:1234
+
+
+=== ENGINE DEBUG (descriptor + prompt) ===
+Engine-derived taunt descriptor:
+
+{
+  "eventType": "ConversionGloat",
+  "targetSide": "player",
+  "severity": "severe",
+  "piece": "queen",
+  "moveSide": "White",
+  "moveNumber": 17,
+  "moveSan": "Qg6+",
+  "moveQualityLabel": "brilliant",
+  "moveQualityDetail": "From the engine's perspective for White, this move tightened an already winning mating attack from mate in 3 to mate in 2. The position was winning before and after, so the raw centipawn delta (~0.00 pawns) is not meaningful here.",
+  "moveDeltaCentipawns": 0
+}
+
+User content sent to taunt LLM:
+
+[GAME_STATE_DETAILS]
+target=player
+event=ConversionGloat
+severity=severe
+piece=queen
+Target move: move 17 White Qg6+.
+Engine move-quality  brilliant.
+From the engine's perspective for White, this move tightened an already winning mating attack from mate in 3 to mate in 2. The position was winning before and after, so the raw centipawn delta (~0.00 pawns) is not meaningful here.
+
+[END_GAME_STATE_DETAILS]
+
+
+
+=== TAUNT (streamed) ===
+
+
+**Your Queen’s g6+ isn’t just another check—it’s a stealthy, precise strike that turns a three-move mate into an immediate finish. Now you’re playing chess like a ninja, moves so quiet they go unnoticed until the moment of truth.**
+=== ERRORS ===
+(none)
