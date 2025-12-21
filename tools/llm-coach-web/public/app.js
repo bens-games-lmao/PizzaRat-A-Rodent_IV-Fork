@@ -2,7 +2,6 @@
   const pgnFileInput = document.getElementById("pgnFile");
   const pgnPreview = document.getElementById("pgnPreview");
   const chatLog = document.getElementById("chatLog");
-  const messageInput = document.getElementById("messageInput");
   const sendBtn = document.getElementById("sendBtn");
   const statusEl = document.getElementById("status");
   const personalitySelect = document.getElementById("personalitySelect");
@@ -17,7 +16,8 @@
   const remoteFallbackToggle = document.getElementById("remoteFallbackToggle");
   const remoteFallbackRow = document.getElementById("remoteFallbackRow");
   const playerColorSelect = document.getElementById("playerColorSelect");
-  const commentTargetSelect = document.getElementById("commentTargetSelect");
+  // Comment target is now always the human player's move for taunts; the
+  // legacy coach commentTargetSelect control has been removed from the UI.
   const pgnBoardContainer = document.getElementById("pgnBoardContainer");
   const pgnBoard = document.getElementById("pgnBoard");
   const pgnBoardCaption = document.getElementById("pgnBoardCaption");
@@ -543,7 +543,7 @@
       if (list.length > 0 && SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
         addMessage(
           "system",
-          "Loaded Rodent personalities. Select one to adjust the coach's tone."
+          "Loaded Rodent personalities. Select one to adjust the taunt style."
         );
       }
     } catch (err) {
@@ -621,11 +621,11 @@
       const value = personalitySelect.value;
       if (SHOW_DIAGNOSTIC_SYSTEM_MESSAGES) {
         if (!value) {
-          addMessage("system", "Using default coach personality.");
+          addMessage("system", "Using default taunt style.");
         } else {
           const label =
             personalitySelect.options[personalitySelect.selectedIndex].textContent;
-          addMessage("system", `Using coach personality: ${label}`);
+          addMessage("system", `Using taunt character: ${label}`);
         }
       }
     });
@@ -673,21 +673,12 @@
   }
 
   async function sendQuestion() {
-    const question = messageInput.value.trim();
-
     if (!currentPgnText) {
       alert("Please upload a PGN file first.");
       return;
     }
 
-    if (question.length > 0) {
-      addMessage("user", question);
-    } else {
-      addMessage("user", "(no specific question, asking for general explanation)");
-    }
-
-    messageInput.value = "";
-    setStatus("Coach is thinking...");
+    setStatus("Generating taunt...");
     sendBtn.disabled = true;
 
     // Reset reasoning view for this new request.
@@ -700,7 +691,7 @@
     currentReasoningBlock = null;
     reasoningSentenceBuffer = "";
 
-    // Create an empty coach bubble we will fill sentence-by-sentence.
+    // Create an empty taunt bubble we will fill sentence-by-sentence.
     const coachDiv = addMessage("coach", "");
     currentCoachMarkdown = "";
 
@@ -738,41 +729,23 @@
         ? playerColorSelect.value
         : "white";
 
-    const selectedCommentTarget =
-      commentTargetSelect && commentTargetSelect.value
-        ? commentTargetSelect.value
-        : "player";
-
     try {
-      const tauntModeOn = !!(useTauntMode && useTauntMode.checked);
+      const endpoint = "/api/taunt/stream";
 
-      const endpoint = tauntModeOn ? "/api/taunt/stream" : "/api/chat/stream";
-
-      const payload = tauntModeOn
-        ? {
-            pgnText: currentPgnText,
-            tauntTargetSide: "player",
-            playerColor: selectedPlayerColor,
-            characterId: selectedPersonality,
-            reasoningEffort: selectedReasoning,
-            playerMessage: question,
-            llmSource: selectedLlmSource,
-            lanHost,
-            lanPort,
-            remoteFallback: remoteFallbackEnabled,
-          }
-        : {
-            pgnText: currentPgnText,
-            message: question,
-            personalityId: selectedPersonality,
-            playerColor: selectedPlayerColor,
-            commentTarget: selectedCommentTarget,
-            reasoningEffort: selectedReasoning,
-            llmSource: selectedLlmSource,
-            lanHost,
-            lanPort,
-            remoteFallback: remoteFallbackEnabled,
-          };
+      const payload = {
+        pgnText: currentPgnText,
+        tauntTargetSide: "player",
+        playerColor: selectedPlayerColor,
+        characterId: selectedPersonality,
+        reasoningEffort: selectedReasoning,
+        // We no longer collect a free-form user question; taunts are generated
+        // purely from engine + game-state details.
+        playerMessage: "",
+        llmSource: selectedLlmSource,
+        lanHost,
+        lanPort,
+        remoteFallback: remoteFallbackEnabled,
+      };
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -824,7 +797,7 @@
 
           if (evt.type === "typing") {
             if (evt.state === "start") {
-              setStatus("Coach is thinking...");
+              setStatus("Generating taunt...");
             } else if (evt.state === "end") {
               setStatus("");
             }
@@ -840,7 +813,7 @@
           } else if (evt.type === "reasoning") {
             // Dev-only: show reasoning in the separate panel and log to console.
             if (evt.text && typeof evt.text === "string") {
-              console.debug("Coach reasoning:", evt.text);
+              console.debug("Taunt reasoning:", evt.text);
               appendReasoningChunk(evt.text);
             }
           } else if (evt.type === "engine_debug") {
@@ -849,7 +822,7 @@
             }
           } else if (evt.type === "error") {
             const msg = evt.message || "Unknown streaming error.";
-            addMessage("system", "Error from coach: " + msg);
+            addMessage("system", "Error from taunt service: " + msg);
           }
         }
       }
@@ -858,7 +831,7 @@
       flushReasoningSentenceIfAny();
     } catch (err) {
       console.error(err);
-      addMessage("system", "Error contacting coach: " + err.message);
+      addMessage("system", "Error contacting taunt service: " + err.message);
       setStatus("");
     } finally {
       sendBtn.disabled = false;
@@ -868,15 +841,6 @@
   if (sendBtn) {
     sendBtn.addEventListener("click", () => {
       void sendQuestion();
-    });
-  }
-
-  if (messageInput) {
-    messageInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        void sendQuestion();
-      }
     });
   }
 

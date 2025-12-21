@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Chess Coach Chatbot</title>
+    <title>Chess Taunt Tester</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -14,9 +14,9 @@
             <input type="file" id="pgnFile" accept=".pgn,text/plain" />
 
             <div class="personality-row">
-              <label for="personalitySelect">Coach personality</label>
+              <label for="personalitySelect">Taunt character</label>
               <select id="personalitySelect">
-                <option value="">Default coach (no character selected)</option>
+                <option value="">Default taunt style (no character selected)</option>
               </select>
             </div>
 
@@ -83,16 +83,8 @@
               </select>
             </div>
 
-            <div class="personality-row">
-              <select id="commentTargetSelect">
-                <option value="player" selected>
-                  Comment on player's most recent move
-                </option>
-                <option value="llm">
-                  Comment on LLM's own most recent move
-                </option>
-              </select>
-            </div>
+            <!-- Comment target is now always the human player's move for taunts,
+                 so the old coach-focused commentTargetSelect has been removed. -->
           </div>
 
           <div class="pgn-preview">
@@ -137,12 +129,7 @@
         <section class="chat-section">
           <div id="chatLog" class="chat-log"></div>
           <div class="chat-input">
-            <textarea
-              id="messageInput"
-              rows="2"
-              placeholder="Ask the coach about the position (or leave blank for a general explanation)..."
-            ></textarea>
-            <button id="sendBtn">Ask coach</button>
+            <button id="sendBtn">Get taunt</button>
           </div>
           <div id="status" class="status"></div>
           <section class="reasoning-section">
